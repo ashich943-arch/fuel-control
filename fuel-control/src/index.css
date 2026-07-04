@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: #F3F4F6;
+  color: #1A1D1F;
+  font-family: 'Inter', sans-serif;
+}
+
+@layer components {
+  .glass-panel {
+    @apply relative rounded-2xl border border-hairline bg-panel shadow-panel;
+  }
+  .plate-label {
+    @apply font-sans text-[10px] tracking-[0.18em] uppercase text-muted;
+  }
+  .gold-divider {
+    @apply h-px bg-gradient-to-r from-gold/30 via-hairline to-transparent;
+  }
+}
+
+@keyframes scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+:focus-visible {
+  outline: 2px solid #FF6B6B;
+  outline-offset: 2px;
+}
