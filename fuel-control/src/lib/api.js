@@ -651,3 +651,34 @@ export async function deleteSupplierPayment(id) {
   const { error } = await supabase.from('supplier_payments').delete().eq('id', id);
   if (error) throw error;
 }
+
+// ---------- Month-End Archive (owner-only) ----------
+
+export async function getArchivedPeriods() {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('archived_periods')
+    .select('*')
+    .order('period_end', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function archivePeriod({ periodLabel, periodStart, periodEnd, totalsSnapshot, archivedByName }) {
+  if (!isSupabaseConfigured) return { id: Date.now() };
+  const { data, error } = await supabase
+    .from('archived_periods')
+    .insert([
+      {
+        period_label: periodLabel,
+        period_start: periodStart,
+        period_end: periodEnd,
+        totals_snapshot: totalsSnapshot,
+        archived_by_name: archivedByName,
+      },
+    ])
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}

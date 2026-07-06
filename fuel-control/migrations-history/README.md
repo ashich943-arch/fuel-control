@@ -48,6 +48,11 @@ in order:
     `tank_deliveries`) so the app can track how much the station owes
     each supplier, instead of a free-text field with no balance
     tracking.
+12. `supabase-schema-v12-month-end-archive.sql` — adds
+    `archived_periods`, a permanent owner-only record that a given
+    date range was reviewed and "closed", with a locked-in totals
+    snapshot. Does not delete or move any underlying data — see the
+    comment at the top of that migration for why.
 
 `setup.sql` is the sum of all of these (minus the dead `sales` table and
 the superseded v6 reconciliation columns), kept up to date going forward.

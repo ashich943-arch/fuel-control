@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getShiftsInRange, getExpensesInRange, getDeliveriesInRange, getCreditCustomers, getAllCreditTransactions } from '../lib/api';
-import { downloadCSV } from '../lib/exportCsv';
+import { getShiftsInRange, getExpensesInRange, getDeliveriesInRange, getCreditCustomers, getAllCreditTransactions, getArchivedPeriods, archivePeriod } from '../lib/api';
 import { localDateString, daysAgoString } from '../lib/date';
 import { FUEL_LABEL, FUEL_TAG_CLASS } from '../lib/fuelTypes';
 
@@ -25,13 +24,25 @@ function rangeToDates(range) {
   return { start, end };
 }
 
-export default function Reports() {
+export default function Reports({ isOwner }) {
   const [range, setRange] = useState('week');
   const [shifts, setShifts] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [outstandingCredit, setOutstandingCredit] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  const [archivedPeriods, setArchivedPeriods] = useState([]);
+  const [archiveForm, setArchiveForm] = useState({ label: '', start: '', end: '' });
+  const [archiving, setArchiving] = useState(false);
+  const [archiveStatus, setArchiveStatus] = useState(null);
+
+  useEffect(() => {
+    if (!isOwner) return;
+    getArchivedPeriods()
+      .then(setArchivedPeriods)
+      .catch((err) => console.error('Failed to load archived periods:', err));
+  }, [isOwner]);
 
   useEffect(() => {
     const { start, end } = rangeToDates(range);
@@ -106,56 +117,217 @@ export default function Reports() {
   }
   const categoryRows = Object.entries(byCategory).sort((a, b) => b[1] - a[1]);
 
-  function exportShiftsCSV() {
-    const rows = [
-      ['Date', 'Shift', 'Staff', 'Pump', 'Fuel', 'Liters', 'Rate', 'Amount', 'Cash', 'Card', 'Easypaisa', 'JazzCash', 'Credit'],
-      ...shiftsWithLiters.map((s) => [
-        s.shift_date,
-        s.shift_type,
-        s.staff?.name || '',
-        s.pump,
-        FUEL_LABEL[s.fuel_type] || s.fuel_type,
-        s.liters.toFixed(1),
-        Number(s.price_per_liter).toFixed(2),
-        s.amount.toFixed(2),
-        s.cash_amount,
-        s.card_amount,
-        s.easypaisa_amount,
-        s.jazzcash_amount,
-        s.credit_amount || 0,
-      ]),
-    ];
-    downloadCSV(`shifts-${range}-${localDateString()}.csv`, rows);
+  const [exporting, setExporting] = useState(false);
+
+  async function exportFullReport() {
+    setExporting(true);
+    try {
+      const summaryRows = [
+        { metric: 'Total Sales', value: totalSales },
+        { metric: 'Net Profit', value: netProfit },
+        { metric: 'Liters Sold', value: totalLiters },
+        { metric: 'Total Expenses', value: totalExpenses },
+        { metric: '', value: '' },
+        { metric: 'Cash', value: byPayment.cash },
+        { metric: 'Card', value: byPayment.card },
+        { metric: 'Easypaisa', value: byPayment.easypaisa },
+        { metric: 'JazzCash', value: byPayment.jazzcash },
+        { metric: 'New Credit Given (this period)', value: byPayment.credit },
+        { metric: 'Total Udhaar Outstanding (right now, all-time)', value: outstandingCredit },
+        { metric: '', value: '' },
+        ...Object.entries(byFuel).map(([fuel, v]) => ({
+          metric: `${FUEL_LABEL[fuel]} — Liters Sold`,
+          value: v.liters,
+        })),
+        ...Object.entries(byFuel).map(([fuel, v]) => ({
+          metric: `${FUEL_LABEL[fuel]} — Sales`,
+          value: v.amount,
+        })),
+      ];
+
+      const shiftRows = shiftsWithLiters.map((s) => ({
+        date: s.shift_date,
+        shift: s.shift_type,
+        staff: s.staff?.name || '',
+        pump: s.pump,
+        fuel: FUEL_LABEL[s.fuel_type] || s.fuel_type,
+        liters: Number(s.liters.toFixed(1)),
+        rate: Number(s.price_per_liter),
+        amount: Number(s.amount.toFixed(2)),
+        cash: Number(s.cash_amount) || 0,
+        card: Number(s.card_amount) || 0,
+        easypaisa: Number(s.easypaisa_amount) || 0,
+        jazzcash: Number(s.jazzcash_amount) || 0,
+        credit: Number(s.credit_amount) || 0,
+      }));
+
+      const expenseRows = expenses.map((e) => ({
+        date: e.spent_at,
+        category: e.category,
+        note: e.note || '',
+        amount: Number(e.amount),
+      }));
+
+      const { downloadXlsx } = await import('../lib/exportXlsx');
+      await downloadXlsx(`fuel-control-report-${range}-${localDateString()}.xlsx`, [
+        {
+          name: 'Summary',
+          columns: [
+            { header: 'Metric', key: 'metric', width: 42 },
+            { header: 'Value', key: 'value', width: 18, numFmt: '#,##0.00' },
+          ],
+          rows: summaryRows,
+        },
+        {
+          name: 'Shifts',
+          columns: [
+            { header: 'Date', key: 'date', width: 12 },
+            { header: 'Shift', key: 'shift', width: 10 },
+            { header: 'Staff', key: 'staff', width: 16 },
+            { header: 'Pump', key: 'pump', width: 8 },
+            { header: 'Fuel', key: 'fuel', width: 10 },
+            { header: 'Liters', key: 'liters', width: 10, numFmt: '#,##0.0' },
+            { header: 'Rate', key: 'rate', width: 10, numFmt: '#,##0.00' },
+            { header: 'Amount', key: 'amount', width: 14, numFmt: '#,##0.00' },
+            { header: 'Cash', key: 'cash', width: 12, numFmt: '#,##0.00' },
+            { header: 'Card', key: 'card', width: 12, numFmt: '#,##0.00' },
+            { header: 'Easypaisa', key: 'easypaisa', width: 12, numFmt: '#,##0.00' },
+            { header: 'JazzCash', key: 'jazzcash', width: 12, numFmt: '#,##0.00' },
+            { header: 'Credit', key: 'credit', width: 12, numFmt: '#,##0.00' },
+          ],
+          rows: shiftRows,
+        },
+        {
+          name: 'Expenses',
+          columns: [
+            { header: 'Date', key: 'date', width: 12 },
+            { header: 'Category', key: 'category', width: 18 },
+            { header: 'Note', key: 'note', width: 30 },
+            { header: 'Amount', key: 'amount', width: 14, numFmt: '#,##0.00' },
+          ],
+          rows: expenseRows,
+        },
+      ]);
+    } catch (err) {
+      console.error('Failed to export report:', err);
+      alert('Could not generate the Excel report. Try again.');
+    } finally {
+      setExporting(false);
+    }
   }
 
-  function exportExpensesCSV() {
-    const rows = [
-      ['Date', 'Category', 'Note', 'Amount'],
-      ...expenses.map((e) => [e.spent_at, e.category, e.note || '', Number(e.amount).toFixed(2)]),
-    ];
-    downloadCSV(`expenses-${range}-${localDateString()}.csv`, rows);
-  }
+  async function handleArchivePeriod(e) {
+    e.preventDefault();
+    if (!archiveForm.label || !archiveForm.start || !archiveForm.end) {
+      setArchiveStatus({ type: 'error', msg: 'Fill in a label and both dates.' });
+      return;
+    }
+    if (archiveForm.start > archiveForm.end) {
+      setArchiveStatus({ type: 'error', msg: 'Start date must be on or before end date.' });
+      return;
+    }
+    setArchiving(true);
+    setArchiveStatus(null);
+    try {
+      const [s, e2] = await Promise.all([
+        getShiftsInRange(archiveForm.start, archiveForm.end),
+        getExpensesInRange(archiveForm.start, archiveForm.end),
+      ]);
+      const swl = (s || []).map((sh) => {
+        const liters = Math.max(0, Number(sh.closing_reading) - Number(sh.opening_reading));
+        return { ...sh, liters, amount: liters * Number(sh.price_per_liter) };
+      });
+      const pTotalSales = swl.reduce((sum, sh) => sum + sh.amount, 0);
+      const pTotalLiters = swl.reduce((sum, sh) => sum + sh.liters, 0);
+      const pTotalExpenses = (e2 || []).reduce((sum, ex) => sum + Number(ex.amount), 0);
+      const pNetProfit = pTotalSales - pTotalExpenses;
+      const pByFuel = {};
+      for (const sh of swl) {
+        if (!pByFuel[sh.fuel_type]) pByFuel[sh.fuel_type] = { liters: 0, amount: 0 };
+        pByFuel[sh.fuel_type].liters += sh.liters;
+        pByFuel[sh.fuel_type].amount += sh.amount;
+      }
 
-  function exportSummaryCSV() {
-    const rows = [
-      ['Metric', 'Value'],
-      ['Total Sales', totalSales.toFixed(2)],
-      ['Net Profit', netProfit.toFixed(2)],
-      ['Liters Sold', totalLiters.toFixed(1)],
-      ['Total Expenses', totalExpenses.toFixed(2)],
-      [],
-      ['Fuel', 'Liters', 'Sales'],
-      ...Object.entries(byFuel).map(([fuel, v]) => [FUEL_LABEL[fuel], v.liters.toFixed(1), v.amount.toFixed(2)]),
-      [],
-      ['Payment Method', 'Amount'],
-      ['Cash', byPayment.cash.toFixed(2)],
-      ['Card', byPayment.card.toFixed(2)],
-      ['Easypaisa', byPayment.easypaisa.toFixed(2)],
-      ['JazzCash', byPayment.jazzcash.toFixed(2)],
-      ['New Credit Given (this period)', byPayment.credit.toFixed(2)],
-      ['Total Udhaar Outstanding (right now, all-time)', outstandingCredit.toFixed(2)],
-    ];
-    downloadCSV(`summary-${range}-${localDateString()}.csv`, rows);
+      const snapshot = {
+        totalSales: pTotalSales,
+        netProfit: pNetProfit,
+        totalLiters: pTotalLiters,
+        totalExpenses: pTotalExpenses,
+        byFuel: pByFuel,
+        shiftCount: swl.length,
+        expenseCount: (e2 || []).length,
+      };
+
+      // Excel export happens as part of archiving — this is the
+      // permanent copy you keep, since nothing in the database is
+      // deleted or moved by this action.
+      const { downloadXlsx } = await import('../lib/exportXlsx');
+      await downloadXlsx(`fuel-control-archive-${archiveForm.label.replace(/\s+/g, '-')}.xlsx`, [
+        {
+          name: 'Summary',
+          columns: [
+            { header: 'Metric', key: 'metric', width: 34 },
+            { header: 'Value', key: 'value', width: 20 },
+          ],
+          rows: [
+            { metric: 'Period', value: `${archiveForm.start} to ${archiveForm.end}` },
+            { metric: 'Total Sales', value: pTotalSales },
+            { metric: 'Net Profit', value: pNetProfit },
+            { metric: 'Liters Sold', value: pTotalLiters },
+            { metric: 'Total Expenses', value: pTotalExpenses },
+          ],
+        },
+        {
+          name: 'Shifts',
+          columns: [
+            { header: 'Date', key: 'date', width: 12 },
+            { header: 'Shift', key: 'shift', width: 10 },
+            { header: 'Staff', key: 'staff', width: 16 },
+            { header: 'Pump', key: 'pump', width: 8 },
+            { header: 'Fuel', key: 'fuel', width: 10 },
+            { header: 'Liters', key: 'liters', width: 10, numFmt: '#,##0.0' },
+            { header: 'Amount', key: 'amount', width: 14, numFmt: '#,##0.00' },
+          ],
+          rows: swl.map((sh) => ({
+            date: sh.shift_date,
+            shift: sh.shift_type,
+            staff: sh.staff?.name || '',
+            pump: sh.pump,
+            fuel: FUEL_LABEL[sh.fuel_type] || sh.fuel_type,
+            liters: Number(sh.liters.toFixed(1)),
+            amount: Number(sh.amount.toFixed(2)),
+          })),
+        },
+        {
+          name: 'Expenses',
+          columns: [
+            { header: 'Date', key: 'date', width: 12 },
+            { header: 'Category', key: 'category', width: 18 },
+            { header: 'Note', key: 'note', width: 30 },
+            { header: 'Amount', key: 'amount', width: 14, numFmt: '#,##0.00' },
+          ],
+          rows: (e2 || []).map((ex) => ({ date: ex.spent_at, category: ex.category, note: ex.note || '', amount: Number(ex.amount) })),
+        },
+      ]);
+
+      const saved = await archivePeriod({
+        periodLabel: archiveForm.label,
+        periodStart: archiveForm.start,
+        periodEnd: archiveForm.end,
+        totalsSnapshot: snapshot,
+      });
+      setArchivedPeriods((prev) => [saved, ...prev]);
+      setArchiveForm({ label: '', start: '', end: '' });
+      setArchiveStatus({
+        type: 'success',
+        msg: `"${saved.period_label}" archived and Excel downloaded. All the underlying data stays visible in Reports by date range — nothing was deleted.`,
+      });
+    } catch (err) {
+      console.error('Failed to archive period:', err);
+      setArchiveStatus({ type: 'error', msg: 'Could not archive this period. Try again.' });
+    } finally {
+      setArchiving(false);
+    }
   }
 
   const costByFuel = {};
@@ -199,26 +371,13 @@ export default function Reports() {
             </button>
           ))}
           {!loading && (shifts.length > 0 || expenses.length > 0) && (
-            <>
-              <button
-                onClick={exportSummaryCSV}
-                className="px-3.5 py-2 rounded-lg font-sans text-[12.5px] font-medium border border-primary/30 text-primaryDim hover:bg-primary/10 transition-colors"
-              >
-                Export Summary
-              </button>
-              <button
-                onClick={exportShiftsCSV}
-                className="px-3.5 py-2 rounded-lg font-sans text-[12.5px] font-medium border border-hairline text-muted hover:text-ivory transition-colors"
-              >
-                Export Shifts
-              </button>
-              <button
-                onClick={exportExpensesCSV}
-                className="px-3.5 py-2 rounded-lg font-sans text-[12.5px] font-medium border border-hairline text-muted hover:text-ivory transition-colors"
-              >
-                Export Expenses
-              </button>
-            </>
+            <button
+              onClick={exportFullReport}
+              disabled={exporting}
+              className="px-3.5 py-2 rounded-lg font-sans text-[12.5px] font-medium border border-primary/30 text-primaryDim hover:bg-primary/10 transition-colors disabled:opacity-50"
+            >
+              {exporting ? 'Preparing…' : 'Download Excel Report'}
+            </button>
           )}
         </div>
       </div>
@@ -448,6 +607,89 @@ export default function Reports() {
             </div>
           ) : null}
         </>
+      )}
+
+      {isOwner && (
+        <div className="mt-8">
+          <div className="flex items-center gap-2.5 mb-3.5">
+            <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Month-End Archive</h2>
+            <div className="flex-1 primary-divider" />
+          </div>
+          <div className="font-sans text-[12px] text-mutedDim mb-4 max-w-2xl">
+            Closes out a period with a permanent record and an Excel download — it does <b>not</b> delete or hide anything.
+            Every shift, expense, and delivery stays exactly where it is and remains visible above by picking that date range.
+            This is just a dated receipt confirming a period was reviewed and closed.
+          </div>
+
+          <form onSubmit={handleArchivePeriod} className="glass-panel p-6 max-w-2xl flex flex-col gap-4 mb-6">
+            <input
+              type="text" placeholder='Label (e.g. "June 2026")' value={archiveForm.label}
+              onChange={(ev) => setArchiveForm((f) => ({ ...f, label: ev.target.value }))}
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="font-sans text-[10px] text-mutedDim block mb-1">From</label>
+                <input
+                  type="date" value={archiveForm.start}
+                  onChange={(ev) => setArchiveForm((f) => ({ ...f, start: ev.target.value }))}
+                  className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+                />
+              </div>
+              <div>
+                <label className="font-sans text-[10px] text-mutedDim block mb-1">To</label>
+                <input
+                  type="date" value={archiveForm.end}
+                  onChange={(ev) => setArchiveForm((f) => ({ ...f, end: ev.target.value }))}
+                  className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+                />
+              </div>
+            </div>
+            <button
+              type="submit" disabled={archiving}
+              className="w-full py-2.5 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+            >
+              {archiving ? 'Archiving…' : 'Archive This Period & Download Excel'}
+            </button>
+            {archiveStatus && (
+              <div className={`font-sans text-[12.5px] px-4 py-2.5 rounded-lg border ${
+                archiveStatus.type === 'success' ? 'border-emeraldLight/30 text-emerald bg-emeraldLight/5' : 'border-warnLight/30 text-warn bg-warnLight/5'
+              }`}>
+                {archiveStatus.msg}
+              </div>
+            )}
+          </form>
+
+          {archivedPeriods.length > 0 && (
+            <div className="glass-panel p-5 max-w-2xl">
+              <div className="plate-label mb-3">Previously Archived Periods</div>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse font-sans text-[12.5px]">
+                  <thead>
+                    <tr>
+                      {['Period', 'Dates', 'Total Sales', 'Net Profit', 'Closed On'].map((h) => (
+                        <th key={h} className="text-left text-[10px] tracking-[0.1em] uppercase text-muted font-medium pb-2.5 border-b border-hairline">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {archivedPeriods.map((p) => (
+                      <tr key={p.id} className="border-b border-hairline/50 last:border-none">
+                        <td className="py-2.5 text-ivory">{p.period_label}</td>
+                        <td className="py-2.5 text-muted">{p.period_start} → {p.period_end}</td>
+                        <td className="py-2.5 text-primaryDim font-semibold">Rs {Math.round(p.totals_snapshot.totalSales).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 text-emerald font-semibold">Rs {Math.round(p.totals_snapshot.netProfit).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 text-mutedDim">{new Date(p.archived_at).toLocaleDateString('en-GB')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

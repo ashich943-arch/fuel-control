@@ -58,15 +58,32 @@ export default function Suppliers() {
   }
 
   function ledgerFor(supplierId) {
-    const deliveryRows = deliveries
-      .filter((d) => d.supplier_id === supplierId)
-      .map((d) => ({
+    const rows = [];
+    for (const d of deliveries.filter((d) => d.supplier_id === supplierId)) {
+      const date = d.delivered_at ? localDateString(new Date(d.delivered_at)) : null;
+      const cost = Number(d.liters) * Number(d.rate_per_liter);
+      const paidAtDelivery = Number(d.amount_paid || 0);
+      // Full cost of the delivery — what was added to what's owed.
+      rows.push({
         kind: 'delivery',
-        date: d.delivered_at ? localDateString(new Date(d.delivered_at)) : null,
-        amount: Number(d.liters) * Number(d.rate_per_liter) - Number(d.amount_paid || 0),
+        date,
+        amount: cost,
         detail: `${Number(d.liters).toLocaleString()} L delivery`,
         id: `d${d.id}`,
-      }));
+      });
+      // If something was paid at the time of delivery, show it as its
+      // own line right there — otherwise it looks like nothing was
+      // paid when really it was netted into a single number.
+      if (paidAtDelivery > 0) {
+        rows.push({
+          kind: 'delivery_payment',
+          date,
+          amount: -paidAtDelivery,
+          detail: 'Paid at delivery',
+          id: `dp${d.id}`,
+        });
+      }
+    }
     const paymentRows = payments
       .filter((p) => p.supplier_id === supplierId)
       .map((p) => ({
@@ -76,7 +93,7 @@ export default function Suppliers() {
         detail: p.note || 'Payment',
         id: p.id,
       }));
-    return [...deliveryRows, ...paymentRows].sort((a, b) => (a.date < b.date ? 1 : -1));
+    return [...rows, ...paymentRows].sort((a, b) => (a.date < b.date ? 1 : -1));
   }
 
   function startEdit(s) {

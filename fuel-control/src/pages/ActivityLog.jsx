@@ -51,6 +51,8 @@ function describe(entry) {
         ? `deleted a supplier payment of Rs ${Number(d.amount).toLocaleString('en-IN')}`
         : `recorded a supplier payment of Rs ${Number(d.amount).toLocaleString('en-IN')}`;
     }
+    case 'archived_periods':
+      return `archived period "${n.period_label}" (${n.period_start} to ${n.period_end})`;
     case 'credit_transactions': {
       const d = operation === 'DELETE' ? o : n;
       const label = d.type === 'payment' ? 'a payment' : 'a credit sale';

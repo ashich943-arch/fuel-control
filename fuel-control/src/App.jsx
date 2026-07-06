@@ -107,7 +107,7 @@ export default function App() {
           {page === 'staff' && (isOwner ? <Staff /> : <RestrictedNotice />)}
           {page === 'credit' && <Credit />}
           {page === 'reconciliation' && <Reconciliation />}
-          {page === 'reports' && <Reports />}
+          {page === 'reports' && <Reports isOwner={isOwner} />}
           {page === 'activity' && (isOwner ? <ActivityLog /> : <RestrictedNotice />)}
         </main>
       </div>

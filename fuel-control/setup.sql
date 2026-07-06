@@ -189,6 +189,17 @@ create table if not exists activity_log (
   created_at timestamptz default now()
 );
 
+-- ---------- Month-end archive (permanent closed-period receipts) ----------
+create table if not exists archived_periods (
+  id bigint generated always as identity primary key,
+  period_label text not null,
+  period_start date not null,
+  period_end date not null,
+  totals_snapshot jsonb not null,
+  archived_by_name text,
+  archived_at timestamptz default now()
+);
+
 -- ============================================================
 -- Helper function: weekly liters throughput (used by Overview page)
 -- ============================================================
@@ -340,6 +351,7 @@ create trigger trg_log_reconciliations after insert or update on daily_reconcili
 create trigger trg_log_credit_transactions after insert or delete on credit_transactions for each row execute function log_activity();
 create trigger trg_log_suppliers after insert or update or delete on suppliers for each row execute function log_activity();
 create trigger trg_log_supplier_payments after insert or delete on supplier_payments for each row execute function log_activity();
+create trigger trg_log_archived_periods after insert on archived_periods for each row execute function log_activity();
 
 -- ============================================================
 -- Row Level Security — single-admin setup
@@ -361,6 +373,7 @@ alter table user_profiles enable row level security;
 alter table activity_log enable row level security;
 alter table suppliers enable row level security;
 alter table supplier_payments enable row level security;
+alter table archived_periods enable row level security;
 
 create policy "Authenticated full access - tanks" on tanks
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
@@ -382,6 +395,8 @@ create policy "Authenticated full access - suppliers" on suppliers
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "Authenticated full access - supplier_payments" on supplier_payments
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "Owner full access - archived_periods" on archived_periods
+  for all using (is_owner()) with check (is_owner());
 
 -- Everyone signed in can read their own and others' basic profile
 -- info (just name/email/role — used to show "who did what" in the
