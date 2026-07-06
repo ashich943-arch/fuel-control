@@ -42,6 +42,12 @@ in order:
     just hidden in the UI). Includes a one-time step at the bottom to
     assign the existing owner login their role — required after
     running, or that login defaults to manager-level access.
+11. `supabase-schema-v11-supplier-management.sql` — adds structured
+    supplier records (`suppliers` table) and a purchase/payment ledger
+    (`supplier_payments`, plus `supplier_id`/`amount_paid` columns on
+    `tank_deliveries`) so the app can track how much the station owes
+    each supplier, instead of a free-text field with no balance
+    tracking.
 
 `setup.sql` is the sum of all of these (minus the dead `sales` table and
 the superseded v6 reconciliation columns), kept up to date going forward.

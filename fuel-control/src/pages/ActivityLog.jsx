@@ -38,6 +38,19 @@ function describe(entry) {
     }
     case 'daily_reconciliations':
       return `saved cash reconciliation for ${n.reconciliation_date || '—'}`;
+    case 'suppliers': {
+      if (operation === 'INSERT') return `added supplier "${n.name}"`;
+      if (operation === 'DELETE') return `removed supplier "${o.name}"`;
+      if (o.active === true && n.active === false) return `marked supplier "${n.name}" inactive`;
+      if (o.active === false && n.active === true) return `reactivated supplier "${n.name}"`;
+      return `updated supplier "${n.name}"`;
+    }
+    case 'supplier_payments': {
+      const d = operation === 'DELETE' ? o : n;
+      return operation === 'DELETE'
+        ? `deleted a supplier payment of Rs ${Number(d.amount).toLocaleString('en-IN')}`
+        : `recorded a supplier payment of Rs ${Number(d.amount).toLocaleString('en-IN')}`;
+    }
     case 'credit_transactions': {
       const d = operation === 'DELETE' ? o : n;
       const label = d.type === 'payment' ? 'a payment' : 'a credit sale';

@@ -75,4 +75,4 @@ Always use `localDateString()` from `src/lib/date.js` for "today's
 date" anywhere in this app — never `new Date().toISOString().slice(0, 10)`.
 That pattern gives the UTC date, which is wrong for Pakistan (UTC+5):
 anything logged between 12:00 AM-~5:00 AM local time would get stamped
-with yesterday's date.--
+with yesterday's date.

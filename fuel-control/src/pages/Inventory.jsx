@@ -13,6 +13,8 @@ import {
   updatePumpTank,
   getDeliveries,
   getShiftsInRange,
+  getSuppliers,
+  addSupplier,
 } from '../lib/api';
 import { localDateString, daysAgoString } from '../lib/date';
 import { FUEL_OPTIONS } from '../lib/fuelTypes';
@@ -25,9 +27,12 @@ export default function Inventory() {
   const [tanks, setTanks] = useState([]);
   const [pumps, setPumps] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [avgDailyByFuel, setAvgDailyByFuel] = useState({});
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({ tank_id: '', liters: '', rate: '', supplier: '' });
+  const [form, setForm] = useState({ tank_id: '', liters: '', rate: '', supplier_id: '', amount_paid: '' });
+  const [addingSupplier, setAddingSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState('');
   const [status, setStatus] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -46,11 +51,12 @@ export default function Inventory() {
   function load() {
     setLoading(true);
     const { start, end } = last7DayRange();
-    Promise.all([getTanks(), getDeliveries(), getShiftsInRange(start, end), getPumps()])
-      .then(([t, d, shifts, pmp]) => {
+    Promise.all([getTanks(), getDeliveries(), getShiftsInRange(start, end), getPumps(), getSuppliers()])
+      .then(([t, d, shifts, pmp, sup]) => {
         setTanks(t);
         setDeliveries(d);
         setPumps(pmp);
+        setSuppliers(sup);
         setForm((f) => ({ ...f, tank_id: f.tank_id || t[0]?.id || '' }));
 
         const byFuel = {};
@@ -89,25 +95,28 @@ export default function Inventory() {
     setSaving(true);
     setStatus(null);
     try {
+      const supplier = suppliers.find((s) => s.id === Number(form.supplier_id));
       const saved = await addDelivery({
         tank_id: Number(form.tank_id),
         liters: Number(form.liters),
         rate_per_liter: Number(form.rate),
-        supplier: form.supplier || 'Unnamed supplier',
+        supplier_id: form.supplier_id ? Number(form.supplier_id) : null,
+        supplier: supplier?.name || 'Unnamed supplier',
+        amount_paid: Number(form.amount_paid) || 0,
         delivered_at: new Date().toISOString(),
       });
       if (tank) {
         const newLevel = await adjustTankLevel(tank.id, Number(form.liters));
         setTanks((prev) => prev.map((t) => (t.id === tank.id ? { ...t, current_liters: newLevel ?? t.current_liters } : t)));
       }
-      setDeliveries((prev) => [{ ...saved, tanks: { fuel_type: tank?.fuel_type, name: tank?.name } }, ...prev]);
+      setDeliveries((prev) => [{ ...saved, tanks: { fuel_type: tank?.fuel_type, name: tank?.name }, suppliers: supplier ? { id: supplier.id, name: supplier.name } : null }, ...prev]);
       setStatus({
         type: overflow ? 'warn' : 'success',
         msg: overflow
           ? `Delivery recorded, but ${form.liters} L exceeds this tank's remaining space — level capped at capacity. Check tank capacity is set correctly.`
           : `Recorded delivery of ${form.liters} L.`,
       });
-      setForm((f) => ({ ...f, liters: '', rate: '', supplier: '' }));
+      setForm((f) => ({ ...f, liters: '', rate: '', supplier_id: '', amount_paid: '' }));
     } catch (err) {
       console.error('Failed to save delivery:', err);
       setStatus({ type: 'error', msg: 'Could not save delivery. Try again.' });
@@ -418,12 +427,70 @@ export default function Inventory() {
 
         <div>
           <label className="plate-label block mb-2">Supplier</label>
+          {addingSupplier ? (
+            <div className="flex gap-2">
+              <input
+                type="text" autoFocus value={newSupplierName}
+                onChange={(e) => setNewSupplierName(e.target.value)}
+                placeholder="Supplier name"
+                className="flex-1 bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!newSupplierName.trim()) return;
+                  const saved = await addSupplier({ name: newSupplierName.trim() });
+                  setSuppliers((prev) => [...prev, saved]);
+                  setForm((f) => ({ ...f, supplier_id: saved.id }));
+                  setNewSupplierName('');
+                  setAddingSupplier(false);
+                }}
+                className="font-sans text-[11px] text-emerald border border-emeraldLight/30 rounded-lg px-3 hover:bg-emeraldLight/10"
+              >
+                Add
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAddingSupplier(false); setNewSupplierName(''); }}
+                className="font-sans text-[11px] text-mutedDim hover:text-ivory"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <select
+                value={form.supplier_id}
+                onChange={(e) => setForm((f) => ({ ...f, supplier_id: e.target.value }))}
+                className="flex-1 bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+              >
+                <option value="">Select supplier (optional)</option>
+                {suppliers.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setAddingSupplier(true)}
+                className="font-sans text-[12px] text-primaryDim border border-primary/30 rounded-lg px-3.5 hover:bg-primary/10 transition-colors whitespace-nowrap"
+              >
+                + New
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="plate-label block mb-2">Amount Paid Now (Rs)</label>
           <input
-            type="text" value={form.supplier}
-            onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))}
-            placeholder="e.g. PSO Depot Sargodha"
+            type="number" min="0" value={form.amount_paid}
+            onChange={(e) => setForm((f) => ({ ...f, amount_paid: e.target.value }))}
+            placeholder="0"
             className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           />
+          <div className="font-sans text-[10.5px] text-mutedDim mt-1.5">
+            Leave 0 if this delivery is fully on credit — the rest shows up as owed on the Suppliers page.
+          </div>
         </div>
 
         {status && (

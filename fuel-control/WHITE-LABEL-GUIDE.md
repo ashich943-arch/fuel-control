@@ -29,8 +29,8 @@ standard rebrand.
 - Frontend: edit `src/lib/fuelTypes.js` — one file, used everywhere
   (Shift Entry, Inventory, Credit, Reports, Shifts Table)
 - Database: update the `fuel_type` check constraint on `tanks`,
-  `fuel_prices`, `shifts`, and `credit_transactions` in `setup.sql`
-  to match (e.g. add `'cng'` to the list) before running it
+  `fuel_prices`, `shifts`, `credit_transactions`, and `suppliers` in
+  `setup.sql` to match (e.g. add `'cng'` to the list) before running it
 
 ## 4. Environment variables (Vercel → Settings → Environment Variables)
 - `VITE_SUPABASE_URL`

@@ -52,7 +52,12 @@ export default function Overview({ onNavigate, isOwner }) {
       const pump = pumps.find((p) => p.name === shift.pump);
       const tank = tanks.find((t) => t.id === pump?.tank_id);
       if (!tank) {
-        console.error('Could not resolve tank for shift', shift);
+        console.error('Could not resolve tank for shift', shift, { pump, pumps, tanks });
+        alert(
+          !pump
+            ? `Can't delete this shift: no pump named "${shift.pump}" was found. It may have been renamed or removed. Check Tank Inventory → Pump Assignment.`
+            : `Can't delete this shift: pump "${shift.pump}" isn't assigned to a tank. Check Tank Inventory → Pump Assignment, then try again.`
+        );
         return;
       }
       // Atomic: reverts the tank stock, deletes any Udhaar/credit

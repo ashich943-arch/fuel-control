@@ -12,6 +12,7 @@ import Reports from './pages/Reports';
 import Credit from './pages/Credit';
 import Reconciliation from './pages/Reconciliation';
 import ActivityLog from './pages/ActivityLog';
+import Suppliers from './pages/Suppliers';
 import { supabase, isSupabaseConfigured } from './lib/supabaseClient';
 import { getMyProfile } from './lib/api';
 import { STATION_NAME } from './lib/config';
@@ -100,6 +101,7 @@ export default function App() {
           {page === 'overview' && <Overview onNavigate={setPage} isOwner={isOwner} />}
           {page === 'shift' && <ShiftEntry />}
           {page === 'inventory' && <Inventory />}
+          {page === 'suppliers' && <Suppliers />}
           {page === 'prices' && (isOwner ? <Pricing /> : <RestrictedNotice />)}
           {page === 'expenses' && <Expenses />}
           {page === 'staff' && (isOwner ? <Staff /> : <RestrictedNotice />)}

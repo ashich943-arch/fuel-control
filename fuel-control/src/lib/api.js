@@ -106,7 +106,7 @@ export async function getDeliveries(limit = 100) {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('tank_deliveries')
-    .select('*, tanks(fuel_type, name)')
+    .select('*, tanks(fuel_type, name), suppliers(id, name)')
     .order('delivered_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -121,7 +121,7 @@ export async function getDeliveriesInRange(startDate, endDate) {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase
     .from('tank_deliveries')
-    .select('*, tanks(fuel_type, name)')
+    .select('*, tanks(fuel_type, name), suppliers(id, name)')
     .gte('delivered_at', `${startDate}T00:00:00`)
     .lte('delivered_at', `${endDate}T23:59:59`)
     .order('delivered_at', { ascending: false });
@@ -566,4 +566,88 @@ export async function setStaffActive(id, active) {
   const { data, error } = await supabase.from('staff').update({ active }).eq('id', id).select().single();
   if (error) throw error;
   return data;
+}
+
+// ---------- Suppliers (fuel purchase ledger) ----------
+
+export async function getSuppliers() {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.from('suppliers').select('*').eq('active', true).order('name');
+  if (error) throw error;
+  return data;
+}
+
+// Used by the Suppliers management page (shows inactive too, so they
+// can be reactivated). Delivery form's dropdown should keep using
+// getSuppliers() above — only active suppliers should show there.
+export async function getAllSuppliers() {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.from('suppliers').select('*').order('active', { ascending: false }).order('name');
+  if (error) throw error;
+  return data;
+}
+
+export async function addSupplier(supplier) {
+  if (!isSupabaseConfigured) return { ...supplier, id: Date.now() };
+  const { data, error } = await supabase.from('suppliers').insert([supplier]).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateSupplier(id, fields) {
+  if (!isSupabaseConfigured) return;
+  const { data, error } = await supabase.from('suppliers').update(fields).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setSupplierActive(id, active) {
+  if (!isSupabaseConfigured) return;
+  const { data, error } = await supabase.from('suppliers').update({ active }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+// All deliveries across all suppliers — used to compute each
+// supplier's balance owed (delivery cost - amount_paid, summed).
+export async function getAllDeliveriesForLedger() {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('tank_deliveries')
+    .select('id, supplier_id, liters, rate_per_liter, amount_paid, delivered_at')
+    .not('supplier_id', 'is', null);
+  if (error) throw error;
+  return data;
+}
+
+export async function getSupplierPayments(supplierId) {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('supplier_payments')
+    .select('*')
+    .eq('supplier_id', supplierId)
+    .order('paid_at', { ascending: false })
+    .order('id', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
+export async function getAllSupplierPayments() {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase.from('supplier_payments').select('*');
+  if (error) throw error;
+  return data;
+}
+
+export async function addSupplierPayment(payment) {
+  if (!isSupabaseConfigured) return { ...payment, id: Date.now() };
+  const { data, error } = await supabase.from('supplier_payments').insert([payment]).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteSupplierPayment(id) {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase.from('supplier_payments').delete().eq('id', id);
+  if (error) throw error;
 }

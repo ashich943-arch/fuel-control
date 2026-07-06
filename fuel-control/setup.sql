@@ -22,6 +22,18 @@ create table if not exists tanks (
   created_at timestamptz default now()
 );
 
+-- ---------- Suppliers (fuel purchase ledger) ----------
+create table if not exists suppliers (
+  id bigint generated always as identity primary key,
+  name text not null,
+  phone text,
+  address text,
+  fuel_type text check (fuel_type in ('petrol', 'diesel', 'hioctane')),
+  notes text,
+  active boolean not null default true,
+  created_at timestamptz default now()
+);
+
 -- ---------- Tank deliveries (restocking log) ----------
 create table if not exists tank_deliveries (
   id bigint generated always as identity primary key,
@@ -29,7 +41,19 @@ create table if not exists tank_deliveries (
   liters numeric not null check (liters > 0),
   rate_per_liter numeric not null check (rate_per_liter >= 0),
   supplier text,
+  supplier_id bigint references suppliers(id) on delete set null,
+  amount_paid numeric not null default 0,
   delivered_at timestamptz not null default now()
+);
+
+-- ---------- Supplier payments (paying down what the station owes) ----------
+create table if not exists supplier_payments (
+  id bigint generated always as identity primary key,
+  supplier_id bigint not null references suppliers(id) on delete cascade,
+  amount numeric not null check (amount > 0),
+  note text,
+  paid_at date not null default current_date,
+  created_at timestamptz default now()
 );
 
 -- ---------- Fuel prices (current + historical selling price) ----------
@@ -314,6 +338,8 @@ create trigger trg_log_expenses after insert or delete on expenses for each row 
 create trigger trg_log_deliveries after insert or delete on tank_deliveries for each row execute function log_activity();
 create trigger trg_log_reconciliations after insert or update on daily_reconciliations for each row execute function log_activity();
 create trigger trg_log_credit_transactions after insert or delete on credit_transactions for each row execute function log_activity();
+create trigger trg_log_suppliers after insert or update or delete on suppliers for each row execute function log_activity();
+create trigger trg_log_supplier_payments after insert or delete on supplier_payments for each row execute function log_activity();
 
 -- ============================================================
 -- Row Level Security — single-admin setup
@@ -333,6 +359,8 @@ alter table credit_transactions enable row level security;
 alter table daily_reconciliations enable row level security;
 alter table user_profiles enable row level security;
 alter table activity_log enable row level security;
+alter table suppliers enable row level security;
+alter table supplier_payments enable row level security;
 
 create policy "Authenticated full access - tanks" on tanks
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
@@ -349,6 +377,10 @@ create policy "Authenticated full access - credit_customers" on credit_customers
 create policy "Authenticated full access - credit_transactions" on credit_transactions
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "Authenticated full access - daily_reconciliations" on daily_reconciliations
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "Authenticated full access - suppliers" on suppliers
+  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "Authenticated full access - supplier_payments" on supplier_payments
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 
 -- Everyone signed in can read their own and others' basic profile
