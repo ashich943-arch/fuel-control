@@ -141,6 +141,30 @@ create table if not exists daily_reconciliations (
   created_at timestamptz default now()
 );
 
+-- ---------- User profiles (login -> role: 'owner' or 'manager') ----------
+create table if not exists user_profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  email text,
+  full_name text,
+  role text not null default 'manager' check (role in ('owner', 'manager')),
+  created_at timestamptz default now()
+);
+
+-- ---------- Activity log (who did what — written only by triggers, see below) ----------
+create table if not exists activity_log (
+  id bigint generated always as identity primary key,
+  user_id uuid,
+  actor_email text,
+  actor_name text,
+  actor_role text,
+  table_name text not null,
+  operation text not null,
+  row_id bigint,
+  old_data jsonb,
+  new_data jsonb,
+  created_at timestamptz default now()
+);
+
 -- ============================================================
 -- Helper function: weekly liters throughput (used by Overview page)
 -- ============================================================
@@ -220,11 +244,31 @@ begin
 end;
 $$ language plpgsql;
 
+-- ============================================================
+-- is_owner() — used to restrict price changes, staff management,
+-- and shift deletion to the owner login only (see RLS section below)
+-- ============================================================
+create or replace function is_owner()
+returns boolean as $$
+  select exists (
+    select 1 from user_profiles where id = auth.uid() and role = 'owner'
+  );
+$$ language sql stable;
+
 create or replace function delete_shift_and_revert(p_shift_id bigint, p_tank_id bigint)
 returns void as $$
 declare
   v_shift shifts;
 begin
+  -- Explicit check rather than relying only on the DELETE RLS policy
+  -- below: Postgres silently skips rows an RLS policy doesn't match
+  -- (no error), which would otherwise make a manager's delete attempt
+  -- look like it "succeeded" while only reverting stock, not actually
+  -- removing the row. This fails loudly and atomically instead.
+  if not is_owner() then
+    raise exception 'Only the station owner can delete a shift entry.' using errcode = '42501';
+  end if;
+
   select * into v_shift from shifts where id = p_shift_id for update;
   if v_shift is null then
     return;
@@ -234,6 +278,42 @@ begin
   delete from shifts where id = p_shift_id;
 end;
 $$ language plpgsql;
+
+-- ============================================================
+-- Activity log trigger — automatically records who did what.
+-- Runs as security definer so it can read auth.users for the
+-- actor's email; regular logins have no insert/update/delete grant
+-- on activity_log itself, so they cannot write or tamper with it.
+-- ============================================================
+create or replace function log_activity()
+returns trigger as $$
+declare
+  v_email text;
+  v_name text;
+  v_role text;
+begin
+  select email into v_email from auth.users where id = auth.uid();
+  select full_name, role into v_name, v_role from user_profiles where id = auth.uid();
+
+  insert into activity_log (user_id, actor_email, actor_name, actor_role, table_name, operation, row_id, old_data, new_data)
+  values (
+    auth.uid(), v_email, v_name, v_role,
+    TG_TABLE_NAME, TG_OP,
+    (case when TG_OP = 'DELETE' then old.id else new.id end),
+    (case when TG_OP in ('UPDATE', 'DELETE') then to_jsonb(old) else null end),
+    (case when TG_OP in ('UPDATE', 'INSERT') then to_jsonb(new) else null end)
+  );
+  return coalesce(new, old);
+end;
+$$ language plpgsql security definer set search_path = public, auth;
+
+create trigger trg_log_shifts after insert or delete on shifts for each row execute function log_activity();
+create trigger trg_log_fuel_prices after insert on fuel_prices for each row execute function log_activity();
+create trigger trg_log_staff after insert or update or delete on staff for each row execute function log_activity();
+create trigger trg_log_expenses after insert or delete on expenses for each row execute function log_activity();
+create trigger trg_log_deliveries after insert or delete on tank_deliveries for each row execute function log_activity();
+create trigger trg_log_reconciliations after insert or update on daily_reconciliations for each row execute function log_activity();
+create trigger trg_log_credit_transactions after insert or delete on credit_transactions for each row execute function log_activity();
 
 -- ============================================================
 -- Row Level Security — single-admin setup
@@ -251,20 +331,16 @@ alter table salary_payments enable row level security;
 alter table credit_customers enable row level security;
 alter table credit_transactions enable row level security;
 alter table daily_reconciliations enable row level security;
+alter table user_profiles enable row level security;
+alter table activity_log enable row level security;
 
 create policy "Authenticated full access - tanks" on tanks
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "Authenticated full access - deliveries" on tank_deliveries
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Authenticated full access - prices" on fuel_prices
-  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "Authenticated full access - expenses" on expenses
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Authenticated full access - staff" on staff
-  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "Authenticated full access - pumps" on pumps
-  for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "Authenticated full access - shifts" on shifts
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "Authenticated full access - salary_payments" on salary_payments
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
@@ -274,6 +350,34 @@ create policy "Authenticated full access - credit_transactions" on credit_transa
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
 create policy "Authenticated full access - daily_reconciliations" on daily_reconciliations
   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+-- Everyone signed in can read their own and others' basic profile
+-- info (just name/email/role — used to show "who did what" in the
+-- Activity Log). No insert/update/delete policy: roles are assigned
+-- by the owner running SQL directly (see bottom of this file).
+create policy "Authenticated read access - user_profiles" on user_profiles
+  for select using (auth.role() = 'authenticated');
+
+-- Only the owner can read the activity log. No insert/update/delete
+-- policy for anyone — only the log_activity() trigger (running as
+-- its owner, which bypasses RLS on its own table) can write here.
+create policy "Owner read access - activity_log" on activity_log
+  for select using (is_owner());
+
+-- ---- Shifts: any signed-in login can log/view; only the owner can delete ----
+create policy "Authenticated select - shifts" on shifts for select using (auth.role() = 'authenticated');
+create policy "Authenticated insert - shifts" on shifts for insert with check (auth.role() = 'authenticated');
+create policy "Owner delete - shifts" on shifts for delete using (is_owner());
+
+-- ---- Fuel prices: anyone can view; only the owner can change them ----
+create policy "Authenticated select - prices" on fuel_prices for select using (auth.role() = 'authenticated');
+create policy "Owner insert - prices" on fuel_prices for insert with check (is_owner());
+
+-- ---- Staff: anyone can view; only the owner can add/edit/remove ----
+create policy "Authenticated select - staff" on staff for select using (auth.role() = 'authenticated');
+create policy "Owner insert - staff" on staff for insert with check (is_owner());
+create policy "Owner update - staff" on staff for update using (is_owner()) with check (is_owner());
+create policy "Owner delete - staff" on staff for delete using (is_owner());
 
 -- ============================================================
 -- Starter data — EDIT these values before going live with a
@@ -308,12 +412,26 @@ where not exists (select 1 from pumps where name = 'P-3');
 
 -- ============================================================
 -- Next steps after running this:
--- 1. Set the real tank capacities and starting stock (via
+-- 1. Authentication → Add User: create the owner's login.
+-- 2. Assign that login the 'owner' role (replace BOTH the email
+--    and the name):
+--
+--      insert into user_profiles (id, email, role, full_name)
+--      select id, email, 'owner', 'REPLACE_WITH_OWNER_NAME'
+--      from auth.users where email = 'REPLACE_WITH_OWNER_EMAIL'
+--      on conflict (id) do update set role = 'owner', full_name = 'REPLACE_WITH_OWNER_NAME';
+--
+--    Without this step, that login defaults to manager-level access
+--    (no Pricing, Staff, or Activity Log pages) — the app will show
+--    a banner reminding you if this hasn't been done yet. When adding
+--    a manager later, use their own email and name — don't reuse the
+--    owner's, or the Activity Log will misattribute their actions.
+-- 3. Set the real tank capacities and starting stock (via
 --    Tank Inventory → Edit capacity, then Record a Delivery for
 --    the opening stock).
--- 2. Confirm pump → tank assignment matches this station's real
+-- 4. Confirm pump → tank assignment matches this station's real
 --    wiring (Tank Inventory → Pump Assignment).
--- 3. Set real fuel prices (Pricing page).
--- 4. Add staff (Staff page).
--- 5. Change the station name in src/lib/config.js before deploying.
+-- 5. Set real fuel prices (Pricing page).
+-- 6. Add staff (Staff page).
+-- 7. Change the station name in src/lib/config.js before deploying.
 -- ============================================================

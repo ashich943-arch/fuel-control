@@ -21,8 +21,8 @@ body {
   .plate-label {
     @apply font-sans text-[10px] tracking-[0.18em] uppercase text-muted;
   }
-  .gold-divider {
-    @apply h-px bg-gradient-to-r from-gold/30 via-hairline to-transparent;
+  .primary-divider {
+    @apply h-px bg-gradient-to-r from-primary/30 via-hairline to-transparent;
   }
 }
 
@@ -36,6 +36,8 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 
 :focus-visible {
+  /* Matches the "primaryLight" color in tailwind.config.js — update
+     both together if rebranding this build for a new client. */
   outline: 2px solid #FF6B6B;
   outline-offset: 2px;
 }

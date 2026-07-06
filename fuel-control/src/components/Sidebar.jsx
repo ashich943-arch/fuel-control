@@ -8,18 +8,20 @@ const ICONS = {
   credit: 'M17 9V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2m3 5h9a2 2 0 0 0 2-2v-6a2 2 0 0 0-2-2h-9a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2Zm4.5-5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z',
   reconciliation: 'M9 12l2 2 4-4m5 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
   reports: 'M9 17V9m4 8V5m4 12v-5M4 19h16',
+  activity: 'M3 12h4l2-8 4 16 3-8h5',
 };
 
 const NAV = [
   { id: 'overview', label: 'Overview' },
   { id: 'shift', label: 'Shift Entry' },
   { id: 'inventory', label: 'Tank Inventory' },
-  { id: 'prices', label: 'Pricing' },
+  { id: 'prices', label: 'Pricing', ownerOnly: true },
   { id: 'expenses', label: 'Expenses' },
-  { id: 'staff', label: 'Staff' },
+  { id: 'staff', label: 'Staff', ownerOnly: true },
   { id: 'credit', label: 'Udhaar / Credit' },
   { id: 'reconciliation', label: 'Reconciliation' },
   { id: 'reports', label: 'Reports' },
+  { id: 'activity', label: 'Activity Log', ownerOnly: true },
 ];
 
 function NavIcon({ id, active }) {
@@ -38,11 +40,12 @@ function NavIcon({ id, active }) {
   );
 }
 
-export default function Sidebar({ active, onNavigate }) {
+export default function Sidebar({ active, onNavigate, isOwner }) {
+  const items = NAV.filter((item) => !item.ownerOnly || isOwner);
   return (
     <aside className="w-full md:w-56 shrink-0">
       <nav className="glass-panel p-3 flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible">
-        {NAV.map((item) => {
+        {items.map((item) => {
           const isActive = active === item.id;
           return (
             <button
@@ -52,10 +55,10 @@ export default function Sidebar({ active, onNavigate }) {
               className={
                 'flex items-center gap-3 text-left px-3.5 py-2.5 rounded-xl font-sans text-[13.5px] font-medium whitespace-nowrap transition-colors ' +
                 (isActive
-                  ? 'bg-gold text-white shadow-goldglow'
+                  ? 'bg-primary text-white shadow-primaryglow'
                   : item.soon
                   ? 'text-mutedDim cursor-not-allowed'
-                  : 'text-muted hover:text-goldDim hover:bg-gold/[0.06]')
+                  : 'text-muted hover:text-primaryDim hover:bg-primary/[0.06]')
               }
             >
               <NavIcon id={item.id} active={isActive} />

@@ -34,6 +34,14 @@ in order:
    duplicate-shift protection, and shift↔Udhaar linkage. **Required** —
    the app code calls these functions directly now instead of doing
    read-modify-write from the browser.
+10. `supabase-schema-v10-roles-and-activity-log.sql` — adds Owner vs
+    Manager login roles, a tamper-resistant activity log (who
+    logged/deleted a shift, changed a price, added/removed staff,
+    etc.), and restricts shift deletion, price changes, and staff
+    management to the owner login only (enforced in the database, not
+    just hidden in the UI). Includes a one-time step at the bottom to
+    assign the existing owner login their role — required after
+    running, or that login defaults to manager-level access.
 
 `setup.sql` is the sum of all of these (minus the dead `sales` table and
 the superseded v6 reconciliation columns), kept up to date going forward.

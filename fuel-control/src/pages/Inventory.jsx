@@ -15,12 +15,7 @@ import {
   getShiftsInRange,
 } from '../lib/api';
 import { localDateString, daysAgoString } from '../lib/date';
-
-const FUEL_OPTIONS = [
-  { id: 'petrol', label: 'Petrol' },
-  { id: 'diesel', label: 'Diesel' },
-  { id: 'hioctane', label: 'Hi-Octane' },
-];
+import { FUEL_OPTIONS } from '../lib/fuelTypes';
 
 function last7DayRange() {
   return { start: daysAgoString(6), end: localDateString() };
@@ -233,7 +228,7 @@ export default function Inventory() {
     <div>
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Tank Inventory</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-4">
@@ -250,7 +245,7 @@ export default function Inventory() {
                     <input
                       type="number" autoFocus value={capacityInput}
                       onChange={(e) => setCapacityInput(e.target.value)}
-                      className="w-24 bg-obsidian border border-hairline rounded-lg px-2 py-1.5 font-sans text-xs text-ivory outline-none focus:border-gold/40"
+                      className="w-24 bg-obsidian border border-hairline rounded-lg px-2 py-1.5 font-sans text-xs text-ivory outline-none focus:border-primary/40"
                       placeholder="Liters"
                     />
                     <button onClick={() => saveCapacity(t.id)} className="font-sans text-[11px] text-emerald border border-emeraldLight/30 rounded-lg px-2.5 py-1.5 hover:bg-emeraldLight/10">Save</button>
@@ -259,7 +254,7 @@ export default function Inventory() {
                 ) : (
                   <button
                     onClick={() => { setEditingCapacity(t.id); setCapacityInput(String(t.capacity_liters)); }}
-                    className="font-sans text-[11px] text-muted hover:text-goldDim underline decoration-dotted underline-offset-4"
+                    className="font-sans text-[11px] text-muted hover:text-primaryDim underline decoration-dotted underline-offset-4"
                   >
                     Edit capacity ({t.capacity_liters.toLocaleString()} L)
                   </button>
@@ -270,7 +265,7 @@ export default function Inventory() {
                     <input
                       type="number" autoFocus value={thresholdInput}
                       onChange={(e) => setThresholdInput(e.target.value)}
-                      className="w-16 bg-obsidian border border-hairline rounded-lg px-2 py-1.5 font-sans text-xs text-ivory outline-none focus:border-gold/40"
+                      className="w-16 bg-obsidian border border-hairline rounded-lg px-2 py-1.5 font-sans text-xs text-ivory outline-none focus:border-primary/40"
                       placeholder="%"
                     />
                     <button onClick={() => saveThreshold(t.id)} className="font-sans text-[11px] text-emerald border border-emeraldLight/30 rounded-lg px-2.5 py-1.5 hover:bg-emeraldLight/10">Save</button>
@@ -279,7 +274,7 @@ export default function Inventory() {
                 ) : (
                   <button
                     onClick={() => { setEditingThreshold(t.id); setThresholdInput(String(threshold)); }}
-                    className="font-sans text-[11px] text-muted hover:text-goldDim underline decoration-dotted underline-offset-4"
+                    className="font-sans text-[11px] text-muted hover:text-primaryDim underline decoration-dotted underline-offset-4"
                   >
                     Low-stock alert at {threshold}%
                   </button>
@@ -312,13 +307,13 @@ export default function Inventory() {
             <input
               type="text" placeholder="Tank name, e.g. Petrol Tank 2" value={newTank.name}
               onChange={(e) => setNewTank((f) => ({ ...f, name: e.target.value }))}
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
             />
             <div className="grid grid-cols-2 gap-3">
               <select
                 value={newTank.fuel_type}
                 onChange={(e) => setNewTank((f) => ({ ...f, fuel_type: e.target.value }))}
-                className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
               >
                 {FUEL_OPTIONS.map((f) => (
                   <option key={f.id} value={f.id}>{f.label}</option>
@@ -327,12 +322,12 @@ export default function Inventory() {
               <input
                 type="number" placeholder="Capacity (L)" value={newTank.capacity_liters}
                 onChange={(e) => setNewTank((f) => ({ ...f, capacity_liters: e.target.value }))}
-                className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
               />
             </div>
             <button
               type="submit"
-              className="w-full py-2.5 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity"
+              className="w-full py-2.5 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity"
             >
               Add Tank
             </button>
@@ -352,7 +347,7 @@ export default function Inventory() {
                 <select
                   value={p.tank_id || ''}
                   onChange={(e) => handleAssignPump(p.id, e.target.value)}
-                  className="flex-1 bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-[12.5px] text-ivory outline-none focus:border-gold/40"
+                  className="flex-1 bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-[12.5px] text-ivory outline-none focus:border-primary/40"
                 >
                   <option value="">Unassigned</option>
                   {tanks.map((t) => (
@@ -366,11 +361,11 @@ export default function Inventory() {
             <input
               type="text" placeholder="New pump name, e.g. P-4" value={newPumpName}
               onChange={(e) => setNewPumpName(e.target.value)}
-              className="flex-1 bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-[12.5px] text-ivory outline-none focus:border-gold/40"
+              className="flex-1 bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-[12.5px] text-ivory outline-none focus:border-primary/40"
             />
             <button
               type="submit"
-              className="font-sans text-[12px] font-medium text-white bg-gold rounded-lg px-4 py-2 hover:opacity-90 transition-opacity shrink-0"
+              className="font-sans text-[12px] font-medium text-white bg-primary rounded-lg px-4 py-2 hover:opacity-90 transition-opacity shrink-0"
             >
               Add Pump
             </button>
@@ -380,7 +375,7 @@ export default function Inventory() {
 
       <div className="flex items-center gap-2.5 mb-5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Record a Delivery</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
 
       <form onSubmit={handleSubmit} className="glass-panel p-6 max-w-xl flex flex-col gap-5 mb-8">
@@ -389,7 +384,7 @@ export default function Inventory() {
           <select
             value={form.tank_id}
             onChange={(e) => setForm((f) => ({ ...f, tank_id: e.target.value }))}
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           >
             {tanks.length === 0 && <option value="">No tanks yet — add one below first</option>}
             {tanks.map((t) => (
@@ -407,7 +402,7 @@ export default function Inventory() {
               type="number" min="0" value={form.liters}
               onChange={(e) => setForm((f) => ({ ...f, liters: e.target.value }))}
               placeholder="0"
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
             />
           </div>
           <div>
@@ -416,7 +411,7 @@ export default function Inventory() {
               type="number" min="0" step="0.01" value={form.rate}
               onChange={(e) => setForm((f) => ({ ...f, rate: e.target.value }))}
               placeholder="0.00"
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
             />
           </div>
         </div>
@@ -427,7 +422,7 @@ export default function Inventory() {
             type="text" value={form.supplier}
             onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))}
             placeholder="e.g. PSO Depot Sargodha"
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           />
         </div>
 
@@ -443,7 +438,7 @@ export default function Inventory() {
 
         <button
           type="submit" disabled={saving}
-          className="w-full py-3 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-3 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Record Delivery'}
         </button>
@@ -474,7 +469,7 @@ export default function Inventory() {
                       <td className="py-2.5 text-ivory">{d.tanks?.name || '—'}</td>
                       <td className="py-2.5 text-muted">{Number(d.liters).toLocaleString()} L</td>
                       <td className="py-2.5 text-muted">Rs {Number(d.rate_per_liter).toFixed(2)}</td>
-                      <td className="py-2.5 text-goldDim">{d.supplier}</td>
+                      <td className="py-2.5 text-primaryDim">{d.supplier}</td>
                       <td className="py-2.5 text-right">
                         <button
                           onClick={() => handleDeleteDelivery(d)}
@@ -515,7 +510,7 @@ export default function Inventory() {
                     <td className="py-2.5 text-ivory">{name}</td>
                     <td className="py-2.5 text-muted">{v.count}</td>
                     <td className="py-2.5 text-muted">{Math.round(v.liters).toLocaleString()} L</td>
-                    <td className="py-2.5 text-goldDim font-semibold">Rs {(v.cost / v.liters).toFixed(2)}</td>
+                    <td className="py-2.5 text-primaryDim font-semibold">Rs {(v.cost / v.liters).toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>

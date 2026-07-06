@@ -69,7 +69,7 @@ export default function Expenses() {
     <div>
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Today's Expenses</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
 
       <div className="glass-panel p-5 mb-6 max-w-xl flex justify-between items-center">
@@ -84,7 +84,7 @@ export default function Expenses() {
             <select
               value={form.category}
               onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -101,7 +101,7 @@ export default function Expenses() {
               value={form.amount}
               onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
               placeholder="0"
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-lg text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-lg text-ivory outline-none focus:border-primary/40"
             />
           </div>
           <div>
@@ -111,7 +111,7 @@ export default function Expenses() {
               value={form.note}
               onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
               placeholder="e.g. Evening shift advance"
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
             />
           </div>
 
@@ -130,7 +130,7 @@ export default function Expenses() {
           <button
             type="submit"
             disabled={saving}
-            className="w-full py-3 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="w-full py-3 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Log Expense'}
           </button>

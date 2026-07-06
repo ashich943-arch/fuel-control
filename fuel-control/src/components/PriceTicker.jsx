@@ -15,9 +15,9 @@ export default function PriceTicker({ prices, tanks }) {
   const track = [...items, ...items];
 
   return (
-    <div className="glass-panel overflow-hidden mb-6 relative bg-gold border-gold shadow-goldglow">
-      <div className="absolute inset-y-0 left-0 w-9 bg-gradient-to-r from-gold to-transparent z-10" />
-      <div className="absolute inset-y-0 right-0 w-9 bg-gradient-to-l from-gold to-transparent z-10" />
+    <div className="glass-panel overflow-hidden mb-6 relative bg-primary border-primary shadow-primaryglow">
+      <div className="absolute inset-y-0 left-0 w-9 bg-gradient-to-r from-primary to-transparent z-10" />
+      <div className="absolute inset-y-0 right-0 w-9 bg-gradient-to-l from-primary to-transparent z-10" />
       <div className="inline-flex gap-12 py-2.5 px-6 whitespace-nowrap animate-[scroll_24s_linear_infinite] font-sans text-[13px]">
         {track.map((it, i) => (
           <span key={i} className="text-white/75">

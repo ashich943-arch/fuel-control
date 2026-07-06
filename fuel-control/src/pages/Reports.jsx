@@ -1,20 +1,14 @@
 import { useEffect, useState } from 'react';
-import { getShiftsInRange, getExpensesInRange, getDeliveries, getCreditCustomers, getAllCreditTransactions } from '../lib/api';
+import { getShiftsInRange, getExpensesInRange, getDeliveriesInRange, getCreditCustomers, getAllCreditTransactions } from '../lib/api';
 import { downloadCSV } from '../lib/exportCsv';
 import { localDateString, daysAgoString } from '../lib/date';
+import { FUEL_LABEL, FUEL_TAG_CLASS } from '../lib/fuelTypes';
 
 const RANGES = [
   { id: 'today', label: 'Today' },
   { id: 'week', label: 'This Week' },
   { id: 'month', label: 'This Month' },
 ];
-
-const FUEL_LABEL = { petrol: 'Petrol', diesel: 'Diesel', hioctane: 'Hi-Octane' };
-const FUEL_TAG = {
-  petrol: 'bg-gold/15 text-goldDim',
-  diesel: 'bg-emeraldLight/15 text-emerald',
-  hioctane: 'bg-warnLight/20 text-warn',
-};
 
 function rangeToDates(range) {
   const now = new Date();
@@ -42,7 +36,7 @@ export default function Reports() {
   useEffect(() => {
     const { start, end } = rangeToDates(range);
     setLoading(true);
-    Promise.all([getShiftsInRange(start, end), getExpensesInRange(start, end), getDeliveries()])
+    Promise.all([getShiftsInRange(start, end), getExpensesInRange(start, end), getDeliveriesInRange(start, end)])
       .then(([s, e, d]) => {
         setShifts(s || []);
         setExpenses(e || []);
@@ -188,7 +182,7 @@ export default function Reports() {
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div className="flex items-center gap-2.5">
           <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Reports</h2>
-          <div className="flex-1 gold-divider" />
+          <div className="flex-1 primary-divider" />
         </div>
         <div className="flex gap-2 flex-wrap">
           {RANGES.map((r) => (
@@ -197,7 +191,7 @@ export default function Reports() {
               onClick={() => setRange(r.id)}
               className={`px-3.5 py-2 rounded-lg font-sans text-[12.5px] font-medium border transition-colors ${
                 range === r.id
-                  ? 'bg-gold border-gold text-white'
+                  ? 'bg-primary border-primary text-white'
                   : 'border-hairline text-muted hover:text-ivory'
               }`}
             >
@@ -208,7 +202,7 @@ export default function Reports() {
             <>
               <button
                 onClick={exportSummaryCSV}
-                className="px-3.5 py-2 rounded-lg font-sans text-[12.5px] font-medium border border-gold/30 text-goldDim hover:bg-gold/10 transition-colors"
+                className="px-3.5 py-2 rounded-lg font-sans text-[12.5px] font-medium border border-primary/30 text-primaryDim hover:bg-primary/10 transition-colors"
               >
                 Export Summary
               </button>
@@ -238,7 +232,7 @@ export default function Reports() {
       ) : (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
-            <div className="glass-panel p-5 bg-gold border-gold shadow-goldglow">
+            <div className="glass-panel p-5 bg-primary border-primary shadow-primaryglow">
               <div className="font-sans text-[10px] tracking-[0.1em] uppercase text-white/75">Total Sales</div>
               <div className="font-display text-2xl text-white mt-2 font-bold">
                 Rs {Math.round(totalSales).toLocaleString('en-IN')}
@@ -276,7 +270,7 @@ export default function Reports() {
                     return (
                       <div key={fuel}>
                         <div className="flex justify-between items-center mb-1.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] ${FUEL_TAG[fuel]}`}>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] ${FUEL_TAG_CLASS[fuel]}`}>
                             {FUEL_LABEL[fuel]}
                           </span>
                           <span className="font-sans text-[12.5px] text-ivory font-semibold">
@@ -284,7 +278,7 @@ export default function Reports() {
                           </span>
                         </div>
                         <div className="h-2 rounded-full bg-obsidian overflow-hidden">
-                          <div className="h-full bg-gold rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     );
@@ -319,7 +313,7 @@ export default function Reports() {
                           </span>
                         </div>
                         <div className="h-2 rounded-full bg-obsidian overflow-hidden">
-                          <div className="h-full bg-gold rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-primary rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     );
@@ -365,7 +359,7 @@ export default function Reports() {
                         <td className="py-2.5 text-ivory font-medium">{v.dutyCount}</td>
                         <td className="py-2.5 text-muted">{v.entryCount}</td>
                         <td className="py-2.5 text-muted">{Math.round(v.liters)} L</td>
-                        <td className="py-2.5 text-goldDim font-semibold">Rs {Math.round(v.amount).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 text-primaryDim font-semibold">Rs {Math.round(v.amount).toLocaleString('en-IN')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -404,7 +398,7 @@ export default function Reports() {
             </div>
           </div>
 
-          {marginRows.length > 0 && (
+          {marginRows.length > 0 ? (
             <div className="glass-panel p-5">
               <div className="flex items-center justify-between mb-3.5">
                 <div className="plate-label mb-0">Fuel Profit Margin (Purchase vs Sale)</div>
@@ -427,7 +421,7 @@ export default function Reports() {
                   {marginRows.map((r) => (
                     <tr key={r.fuel} className="border-b border-hairline/50 last:border-none">
                       <td className="py-2.5">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] ${FUEL_TAG[r.fuel]}`}>
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10.5px] ${FUEL_TAG_CLASS[r.fuel]}`}>
                           {FUEL_LABEL[r.fuel]}
                         </span>
                       </td>
@@ -442,10 +436,17 @@ export default function Reports() {
               </table>
               </div>
               <p className="font-sans text-[11px] text-mutedDim mt-3">
-                Purchase rate is a weighted average across all recorded deliveries for each tank's fuel type — not limited to this date range.
+                Purchase rate is a weighted average across deliveries recorded within this same date range ({RANGES.find((r) => r.id === range)?.label.toLowerCase()}).
               </p>
             </div>
-          )}
+          ) : shiftsWithLiters.length > 0 ? (
+            <div className="glass-panel p-5">
+              <div className="plate-label mb-2">Fuel Profit Margin (Purchase vs Sale)</div>
+              <p className="font-sans text-[12.5px] text-mutedDim">
+                No deliveries were recorded in this period, so a purchase-cost margin can't be calculated for {RANGES.find((r) => r.id === range)?.label.toLowerCase()}. Try "This Month" or check Tank Inventory for the last delivery date.
+              </p>
+            </div>
+          ) : null}
         </>
       )}
     </div>

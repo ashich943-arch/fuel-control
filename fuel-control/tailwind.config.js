@@ -8,9 +8,9 @@ export default {
         panel: "#FFFFFF",
         panelLight: "#FAFAFB",
         hairline: "#EAEAEF",
-        gold: "#E5484D",
-        goldLight: "#FF6B6B",
-        goldDim: "#B4363B",
+        primary: "#E5484D",
+        primaryLight: "#FF6B6B",
+        primaryDim: "#B4363B",
         emerald: "#1F8A5F",
         emeraldLight: "#22C55E",
         warn: "#D97706",
@@ -25,7 +25,7 @@ export default {
         mono: ["'JetBrains Mono'", "monospace"],
       },
       boxShadow: {
-        goldglow: "0 8px 20px -6px rgba(229,72,77,0.35)",
+        primaryglow: "0 8px 20px -6px rgba(229,72,77,0.35)",
         panel: "0 1px 2px rgba(16,24,40,0.04), 0 8px 24px -12px rgba(16,24,40,0.08)",
       },
       backgroundImage: {

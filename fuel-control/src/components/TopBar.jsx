@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 import { STATION_NAME, AGENCY_NAME } from '../lib/config';
 
-export default function TopBar({ onSignOut }) {
+export default function TopBar({ onSignOut, role }) {
   const [time, setTime] = useState('');
 
   useEffect(() => {
@@ -40,8 +40,13 @@ export default function TopBar({ onSignOut }) {
             />
             {isSupabaseConfigured ? 'Live database connected' : 'Demo mode — Supabase not connected'}
           </span>
-          <span className="block text-lg text-goldLight font-semibold mt-0.5">{time}</span>
+          <span className="block text-lg text-primaryLight font-semibold mt-0.5">{time}</span>
         </div>
+        {role && (
+          <span className="font-sans text-[10.5px] uppercase tracking-wide text-mutedDim border border-hairline rounded-full px-2.5 py-1">
+            {role}
+          </span>
+        )}
         {onSignOut && (
           <button
             onClick={onSignOut}

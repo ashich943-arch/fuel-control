@@ -66,7 +66,7 @@ export default function Reconciliation() {
     <div>
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Cash Reconciliation</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
       <p className="font-sans text-[11px] text-mutedDim mb-5 max-w-xl">
         One check per day. Count the physical cash at closing time and enter it below — it's compared
@@ -79,7 +79,7 @@ export default function Reconciliation() {
           <input
             type="date" value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           />
         </div>
 
@@ -100,7 +100,7 @@ export default function Reconciliation() {
             type="number" value={actualInput}
             onChange={(e) => setActualInput(e.target.value)}
             placeholder="0"
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-lg text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-lg text-ivory outline-none focus:border-primary/40"
           />
         </div>
 
@@ -120,7 +120,7 @@ export default function Reconciliation() {
             type="text" value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. Rs 500 short — attendant will bring tomorrow"
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           />
         </div>
 
@@ -134,7 +134,7 @@ export default function Reconciliation() {
 
         <button
           type="submit" disabled={saving || actualInput === ''}
-          className="w-full py-3 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-3 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {saving ? 'Saving…' : existing ? 'Update' : 'Save Reconciliation'}
         </button>
@@ -142,7 +142,7 @@ export default function Reconciliation() {
 
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">History</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
       <div className="glass-panel p-5">
         {history.length === 0 ? (

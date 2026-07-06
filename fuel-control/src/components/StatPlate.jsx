@@ -29,7 +29,7 @@ export default function StatPlate({ label, value, prefix = '', suffix, trend, ac
 
   if (accent) {
     return (
-      <div className="glass-panel p-5 bg-gold border-gold shadow-goldglow">
+      <div className="glass-panel p-5 bg-primary border-primary shadow-primaryglow">
         <div className="font-sans text-[10px] tracking-[0.1em] uppercase text-white/75">{label}</div>
         <div className="font-display text-3xl text-white mt-2 font-bold">
           {formatted}

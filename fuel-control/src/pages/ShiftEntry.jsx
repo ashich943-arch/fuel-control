@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { getPrices, getStaff, getLastClosingReading, logShift, getTanks, getPumps, getCreditCustomers, addCreditCustomer, getCustomerTransactions } from '../lib/api';
 import { openPrintWindow } from '../lib/print';
 import { localDateString } from '../lib/date';
+import { FUEL_LABEL } from '../lib/fuelTypes';
 
-const FUEL_LABEL = { petrol: 'Petrol', diesel: 'Diesel', hioctane: 'Hi-Octane' };
 const SHIFT_TYPES = ['Morning', 'Evening', 'Night'];
 
 export default function ShiftEntry() {
@@ -253,7 +253,7 @@ export default function ShiftEntry() {
     <div className="max-w-xl">
       <div className="flex items-center gap-2.5 mb-2">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Log Shift Reading</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
       <p className="font-sans text-[11px] text-mutedDim mb-5">
         One entry per pump, per shift — not per customer. Enter the meter reading at shift start and end.
@@ -271,7 +271,7 @@ export default function ShiftEntry() {
           <select
             value={form.staff_id}
             onChange={(e) => setForm((f) => ({ ...f, staff_id: e.target.value }))}
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           >
             {staff.length === 0 && <option value="">No staff added yet</option>}
             {staff.map((s) => (
@@ -288,7 +288,7 @@ export default function ShiftEntry() {
                 type="button" key={s}
                 onClick={() => setForm((f) => ({ ...f, shift_type: s }))}
                 className={`flex-1 py-2.5 rounded-lg font-sans text-sm border transition-colors ${
-                  form.shift_type === s ? 'bg-gold/10 border-gold/30 text-goldDim' : 'border-hairline text-muted hover:text-ivory'
+                  form.shift_type === s ? 'bg-primary/10 border-primary/30 text-primaryDim' : 'border-hairline text-muted hover:text-ivory'
                 }`}
               >
                 {s}
@@ -305,7 +305,7 @@ export default function ShiftEntry() {
                 type="button" key={p.id}
                 onClick={() => setForm((f) => ({ ...f, pump_id: p.id }))}
                 className={`flex-1 py-2.5 rounded-lg font-sans text-sm border transition-colors ${
-                  Number(form.pump_id) === p.id ? 'bg-gold/10 border-gold/30 text-goldDim' : 'border-hairline text-muted hover:text-ivory'
+                  Number(form.pump_id) === p.id ? 'bg-primary/10 border-primary/30 text-primaryDim' : 'border-hairline text-muted hover:text-ivory'
                 }`}
               >
                 {p.name}
@@ -323,7 +323,7 @@ export default function ShiftEntry() {
             <input
               type="number" step="0.1" value={form.opening_reading}
               onChange={(e) => setForm((f) => ({ ...f, opening_reading: e.target.value }))}
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
             />
             <div className="font-sans text-[10px] text-mutedDim mt-1">Auto-filled from last shift's closing</div>
           </div>
@@ -333,7 +333,7 @@ export default function ShiftEntry() {
               type="number" step="0.1" value={form.closing_reading}
               onChange={(e) => setForm((f) => ({ ...f, closing_reading: e.target.value }))}
               placeholder="0.0"
-              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-lg text-ivory outline-none focus:border-gold/40"
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-lg text-ivory outline-none focus:border-primary/40"
             />
           </div>
         </div>
@@ -345,7 +345,7 @@ export default function ShiftEntry() {
 
         <div className="glass-panel p-4 flex justify-between items-center bg-obsidian">
           <span className="plate-label mb-0">{liters.toFixed(1)} L sold @ Rs {price.toFixed(2)}/L</span>
-          <span className="font-display text-2xl text-goldDim font-bold">Rs {amount.toLocaleString('en-IN')}</span>
+          <span className="font-display text-2xl text-primaryDim font-bold">Rs {amount.toLocaleString('en-IN')}</span>
         </div>
 
         <div>
@@ -364,7 +364,7 @@ export default function ShiftEntry() {
                   type="number" value={form[key]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   placeholder="0"
-                  className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                  className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                 />
               </div>
             ))}
@@ -383,7 +383,7 @@ export default function ShiftEntry() {
                     type="text" autoFocus value={newCustomerName}
                     onChange={(e) => setNewCustomerName(e.target.value)}
                     placeholder="Customer name"
-                    className="flex-1 bg-panel border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                    className="flex-1 bg-panel border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                   />
                   <button
                     type="button"
@@ -412,7 +412,7 @@ export default function ShiftEntry() {
                   <select
                     value={form.credit_customer_id}
                     onChange={(e) => setForm((f) => ({ ...f, credit_customer_id: e.target.value }))}
-                    className="flex-1 bg-panel border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                    className="flex-1 bg-panel border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                   >
                     <option value="">Select customer…</option>
                     {creditCustomers.map((c) => (
@@ -422,7 +422,7 @@ export default function ShiftEntry() {
                   <button
                     type="button"
                     onClick={() => setAddingCustomer(true)}
-                    className="font-sans text-[11px] text-goldDim border border-gold/30 rounded-lg px-3 hover:bg-gold/10 whitespace-nowrap"
+                    className="font-sans text-[11px] text-primaryDim border border-primary/30 rounded-lg px-3 hover:bg-primary/10 whitespace-nowrap"
                   >
                     + New
                   </button>
@@ -450,7 +450,7 @@ export default function ShiftEntry() {
               <button
                 type="button"
                 onClick={printSlip}
-                className="shrink-0 font-sans text-[11px] font-medium text-white bg-gold rounded-lg px-3 py-1.5 hover:opacity-90 transition-opacity"
+                className="shrink-0 font-sans text-[11px] font-medium text-white bg-primary rounded-lg px-3 py-1.5 hover:opacity-90 transition-opacity"
               >
                 Print Slip
               </button>
@@ -460,7 +460,7 @@ export default function ShiftEntry() {
 
         <button
           type="submit" disabled={saving || !tank}
-          className="w-full py-3 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-3 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Log Shift'}
         </button>

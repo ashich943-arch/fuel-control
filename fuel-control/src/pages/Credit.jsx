@@ -10,8 +10,7 @@ import {
 } from '../lib/api';
 import { openPrintWindow } from '../lib/print';
 import { localDateString } from '../lib/date';
-
-const FUEL_LABEL = { petrol: 'Petrol', diesel: 'Diesel', hioctane: 'Hi-Octane' };
+import { FUEL_LABEL } from '../lib/fuelTypes';
 
 export default function Credit() {
   const [customers, setCustomers] = useState([]);
@@ -200,7 +199,7 @@ export default function Credit() {
     <div>
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Udhaar / Credit Customers</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
 
       <div className="glass-panel p-5 mb-6">
@@ -229,7 +228,7 @@ export default function Credit() {
                     <td className="py-2.5 text-muted">
                       {c.credit_limit > 0 ? `Rs ${Number(c.credit_limit).toLocaleString('en-IN')}` : '—'}
                     </td>
-                    <td className={`py-2.5 font-semibold ${overLimit ? 'text-warn' : bal > 0 ? 'text-goldDim' : 'text-emerald'}`}>
+                    <td className={`py-2.5 font-semibold ${overLimit ? 'text-warn' : bal > 0 ? 'text-primaryDim' : 'text-emerald'}`}>
                       Rs {Math.round(bal).toLocaleString('en-IN')}
                       {overLimit && <span className="ml-1.5 text-[10px] font-normal">over limit</span>}
                     </td>
@@ -237,7 +236,7 @@ export default function Credit() {
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => openCustomer(c)}
-                          className="font-sans text-[11px] text-goldDim hover:text-gold underline decoration-dotted underline-offset-4"
+                          className="font-sans text-[11px] text-primaryDim hover:text-primary underline decoration-dotted underline-offset-4"
                         >
                           Open ledger
                         </button>
@@ -261,34 +260,34 @@ export default function Credit() {
 
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Add Customer</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
       <form onSubmit={handleAddCustomer} className="glass-panel p-6 max-w-xl flex flex-col gap-4 mb-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <input
             type="text" placeholder="Customer name" value={custForm.name}
             onChange={(e) => setCustForm((f) => ({ ...f, name: e.target.value }))}
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           />
           <input
             type="text" placeholder="Phone" value={custForm.phone}
             onChange={(e) => setCustForm((f) => ({ ...f, phone: e.target.value }))}
-            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+            className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           />
         </div>
         <input
           type="text" placeholder="Address (optional)" value={custForm.address}
           onChange={(e) => setCustForm((f) => ({ ...f, address: e.target.value }))}
-          className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+          className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
         />
         <input
           type="number" placeholder="Credit limit (Rs, optional)" value={custForm.credit_limit}
           onChange={(e) => setCustForm((f) => ({ ...f, credit_limit: e.target.value }))}
-          className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+          className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
         />
         <button
           type="submit" disabled={saving}
-          className="w-full py-2.5 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+          className="w-full py-2.5 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
         >
           Add Customer
         </button>
@@ -304,7 +303,7 @@ export default function Credit() {
             <div className="flex gap-2">
               <button
                 onClick={() => printStatement(selected, customerTx)}
-                className="font-sans text-[12px] font-medium text-goldDim border border-gold/30 rounded-lg px-3.5 py-2 hover:bg-gold/10 transition-colors"
+                className="font-sans text-[12px] font-medium text-primaryDim border border-primary/30 rounded-lg px-3.5 py-2 hover:bg-primary/10 transition-colors"
               >
                 Print Statement
               </button>
@@ -325,7 +324,7 @@ export default function Credit() {
                     type="button" key={t}
                     onClick={() => setTxForm((f) => ({ ...f, type: t }))}
                     className={`flex-1 py-2.5 rounded-lg font-sans text-[13px] border transition-colors ${
-                      txForm.type === t ? 'bg-gold/10 border-gold/30 text-goldDim' : 'border-hairline text-muted hover:text-ivory'
+                      txForm.type === t ? 'bg-primary/10 border-primary/30 text-primaryDim' : 'border-hairline text-muted hover:text-ivory'
                     }`}
                   >
                     {t === 'credit_sale' ? 'Credit Sale' : 'Payment Received'}
@@ -337,7 +336,7 @@ export default function Credit() {
                   <select
                     value={txForm.fuel_type}
                     onChange={(e) => setTxForm((f) => ({ ...f, fuel_type: e.target.value }))}
-                    className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                    className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                   >
                     {Object.entries(FUEL_LABEL).map(([id, label]) => (
                       <option key={id} value={id}>{label}</option>
@@ -346,23 +345,23 @@ export default function Credit() {
                   <input
                     type="number" placeholder="Liters (optional)" value={txForm.liters}
                     onChange={(e) => setTxForm((f) => ({ ...f, liters: e.target.value }))}
-                    className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                    className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                   />
                 </div>
               )}
               <input
                 type="number" placeholder="Amount (Rs)" value={txForm.amount}
                 onChange={(e) => setTxForm((f) => ({ ...f, amount: e.target.value }))}
-                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-lg text-ivory outline-none focus:border-gold/40"
+                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-lg text-ivory outline-none focus:border-primary/40"
               />
               <input
                 type="text" placeholder="Note (optional)" value={txForm.note}
                 onChange={(e) => setTxForm((f) => ({ ...f, note: e.target.value }))}
-                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
               />
               <button
                 type="submit" disabled={saving}
-                className="w-full py-2.5 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="w-full py-2.5 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Record'}
               </button>
@@ -380,7 +379,7 @@ export default function Credit() {
                     <div key={t.id} className="flex justify-between items-center font-sans text-[12px]">
                       <span className="text-muted">{t.transaction_date} · {t.type === 'credit_sale' ? 'Sale' : 'Payment'}</span>
                       <div className="flex items-center gap-2">
-                        <span className={t.type === 'credit_sale' ? 'text-goldDim font-semibold' : 'text-emerald font-semibold'}>
+                        <span className={t.type === 'credit_sale' ? 'text-primaryDim font-semibold' : 'text-emerald font-semibold'}>
                           {t.type === 'credit_sale' ? '+' : '−'}Rs {Number(t.amount).toLocaleString('en-IN')}
                         </span>
                         <button

@@ -7,7 +7,7 @@ import PriceTicker from '../components/PriceTicker';
 import LowStockAlert from '../components/LowStockAlert';
 import { getTanks, getPrices, getRecentShifts, getTodayTotals, getWeeklyThroughput, deleteShift, getPumps } from '../lib/api';
 
-export default function Overview({ onNavigate }) {
+export default function Overview({ onNavigate, isOwner }) {
   const [tanks, setTanks] = useState([]);
   const [pumps, setPumps] = useState([]);
   const [prices, setPrices] = useState([]);
@@ -64,6 +64,7 @@ export default function Overview({ onNavigate }) {
       await load();
     } catch (err) {
       console.error('Failed to delete shift:', err);
+      alert(err?.message?.includes('owner') ? err.message : 'Could not delete shift.');
     }
   }
 
@@ -105,7 +106,7 @@ export default function Overview({ onNavigate }) {
 
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Tank Levels</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
         {tanks.map((t) => (
@@ -123,7 +124,7 @@ export default function Overview({ onNavigate }) {
                 <span
                   className={`px-2.5 py-0.5 rounded-full text-[10.5px] ${
                     p.fuel_type === 'petrol'
-                      ? 'bg-gold/15 text-goldLight'
+                      ? 'bg-primary/15 text-primaryLight'
                       : p.fuel_type === 'diesel'
                       ? 'bg-emeraldLight/15 text-emeraldLight'
                       : 'bg-warn/15 text-warnLight'
@@ -141,7 +142,7 @@ export default function Overview({ onNavigate }) {
         </div>
       </div>
 
-      <ShiftsTable shifts={shifts} onDelete={handleDeleteShift} />
+      <ShiftsTable shifts={shifts} onDelete={isOwner ? handleDeleteShift : undefined} />
     </div>
   );
 }

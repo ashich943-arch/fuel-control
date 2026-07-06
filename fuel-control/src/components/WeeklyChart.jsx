@@ -21,7 +21,7 @@ export default function WeeklyChart({ weekly }) {
                     'w-full max-w-[30px] rounded-t-[4px] rounded-b-[2px] ' +
                     (isWeekend
                       ? 'bg-gradient-to-b from-emeraldLight to-emerald shadow-[0_0_10px_rgba(74,156,130,0.18)]'
-                      : 'bg-gradient-to-b from-goldLight to-gold shadow-goldglow')
+                      : 'bg-gradient-to-b from-primaryLight to-primary shadow-primaryglow')
                   }
                   style={{ height: `${h}%`, transition: 'height 1s cubic-bezier(.22,1,.36,1)' }}
                 />

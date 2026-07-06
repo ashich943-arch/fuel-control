@@ -113,6 +113,22 @@ export async function getDeliveries(limit = 100) {
   return data;
 }
 
+// Used by Reports so the "Fuel Profit Margin" purchase-cost average is
+// scoped to the same date range as the sales figures next to it —
+// getDeliveries() above always returns the most recent 100 regardless
+// of range, which previously made margin numbers mix periods.
+export async function getDeliveriesInRange(startDate, endDate) {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('tank_deliveries')
+    .select('*, tanks(fuel_type, name)')
+    .gte('delivered_at', `${startDate}T00:00:00`)
+    .lte('delivered_at', `${endDate}T23:59:59`)
+    .order('delivered_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 export async function deleteDelivery(id) {
   if (!isSupabaseConfigured) return;
   const { error } = await supabase.from('tank_deliveries').delete().eq('id', id);
@@ -231,6 +247,16 @@ export async function getWeeklyThroughput() {
 export async function getStaff() {
   if (!isSupabaseConfigured) return mockStaff;
   const { data, error } = await supabase.from('staff').select('*').eq('active', true).order('name');
+  if (error) throw error;
+  return data;
+}
+
+// Used by the Staff management page (shows inactive staff too, so
+// the owner can see/reactivate them). Shift Entry's dropdown should
+// keep using getStaff() above — only active staff should show there.
+export async function getAllStaff() {
+  if (!isSupabaseConfigured) return mockStaff;
+  const { data, error } = await supabase.from('staff').select('*').order('active', { ascending: false }).order('name');
   if (error) throw error;
   return data;
 }
@@ -490,4 +516,54 @@ export async function deleteCreditTransaction(id) {
   if (!isSupabaseConfigured) return;
   const { error } = await supabase.from('credit_transactions').delete().eq('id', id);
   if (error) throw error;
+}
+
+// ---------- Roles & permissions ----------
+
+// Returns { role: 'owner' | 'manager' } for the signed-in user, or
+// null if no user_profiles row exists yet for them (e.g. the owner
+// hasn't run the one-time setup step from migration v10 yet).
+export async function getMyProfile() {
+  if (!isSupabaseConfigured) return { role: 'owner', full_name: 'Demo Owner' };
+  const { data: userData } = await supabase.auth.getUser();
+  if (!userData?.user) return null;
+  const { data, error } = await supabase
+    .from('user_profiles')
+    .select('*')
+    .eq('id', userData.user.id)
+    .maybeSingle();
+  if (error) {
+    console.error('getMyProfile failed:', error);
+    return null;
+  }
+  return data;
+}
+
+// ---------- Activity log (owner-only) ----------
+
+export async function getActivityLog(limit = 200) {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('activity_log')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data;
+}
+
+// ---------- Staff edit/deactivate (owner-only, enforced by RLS too) ----------
+
+export async function updateStaff(id, fields) {
+  if (!isSupabaseConfigured) return;
+  const { data, error } = await supabase.from('staff').update(fields).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function setStaffActive(id, active) {
+  if (!isSupabaseConfigured) return;
+  const { data, error } = await supabase.from('staff').update({ active }).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
 }

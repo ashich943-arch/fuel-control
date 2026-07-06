@@ -1,9 +1,4 @@
-const fuelTagClass = {
-  petrol: 'bg-gold/15 text-goldLight',
-  diesel: 'bg-emeraldLight/15 text-emeraldLight',
-  hioctane: 'bg-warn/15 text-warnLight',
-};
-const fuelLabel = { petrol: 'Petrol', diesel: 'Diesel', hioctane: 'Hi-Octane' };
+import { FUEL_LABEL, FUEL_TAG_CLASS } from '../lib/fuelTypes';
 
 export default function ShiftsTable({ shifts, onDelete }) {
   return (
@@ -38,12 +33,12 @@ export default function ShiftsTable({ shifts, onDelete }) {
                 <td className="py-2.5 text-ivory">{s.staff?.name || '—'}</td>
                 <td className="py-2.5 text-ivory">{s.pump}</td>
                 <td className="py-2.5">
-                  <span className={`px-2 py-0.5 rounded-full text-[10.5px] ${fuelTagClass[s.fuel_type]}`}>
-                    {fuelLabel[s.fuel_type]}
+                  <span className={`px-2 py-0.5 rounded-full text-[10.5px] ${FUEL_TAG_CLASS[s.fuel_type]}`}>
+                    {FUEL_LABEL[s.fuel_type]}
                   </span>
                 </td>
                 <td className="py-2.5 text-ivory">{liters.toFixed(1)} L</td>
-                <td className="py-2.5 text-goldDim font-semibold">Rs {amount.toLocaleString('en-IN')}</td>
+                <td className="py-2.5 text-primaryDim font-semibold">Rs {amount.toLocaleString('en-IN')}</td>
                 <td className="py-2.5 text-right">
                   {onDelete && (
                     <button onClick={() => onDelete(s)} className="font-sans text-[11px] text-mutedDim hover:text-warn" title="Delete">

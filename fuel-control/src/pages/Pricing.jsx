@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { getPrices, getPriceHistory, setPrice } from '../lib/api';
 
 const FUELS = [
-  { id: 'petrol', label: 'Petrol', tag: 'bg-gold/15 text-goldLight' },
+  { id: 'petrol', label: 'Petrol', tag: 'bg-primary/15 text-primaryLight' },
   { id: 'diesel', label: 'Diesel', tag: 'bg-emeraldLight/15 text-emeraldLight' },
   { id: 'hioctane', label: 'Hi-Octane', tag: 'bg-warn/15 text-warnLight' },
 ];
@@ -61,7 +61,7 @@ export default function Pricing() {
     <div>
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Current Prices</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-4">
@@ -78,7 +78,7 @@ export default function Pricing() {
                     step="0.01"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                    className="w-full bg-obsidian border border-hairline rounded-lg px-3 py-2 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                     placeholder="0.00"
                   />
                   <button
@@ -100,7 +100,7 @@ export default function Pricing() {
                       setInput(current ? String(current.price_per_liter) : '');
                       setStatus(null);
                     }}
-                    className="font-sans text-[11px] text-muted hover:text-goldLight underline decoration-dotted underline-offset-4"
+                    className="font-sans text-[11px] text-muted hover:text-primaryLight underline decoration-dotted underline-offset-4"
                   >
                     Update
                   </button>
@@ -128,7 +128,7 @@ export default function Pricing() {
 
       <div className="flex items-center gap-2.5 mb-3.5">
         <h2 className="font-display text-lg text-ivory uppercase tracking-wide font-bold">Price History</h2>
-        <div className="flex-1 gold-divider" />
+        <div className="flex-1 primary-divider" />
       </div>
       <div className="glass-panel p-5">
         <div className="overflow-x-auto">
@@ -161,7 +161,7 @@ export default function Pricing() {
                   <td className="py-2.5">
                     <span className={`px-2 py-0.5 rounded-full text-[10.5px] ${f?.tag}`}>{f?.label}</span>
                   </td>
-                  <td className="py-2.5 text-goldLight font-semibold">
+                  <td className="py-2.5 text-primaryLight font-semibold">
                     Rs {Number(row.price_per_liter).toFixed(2)}
                   </td>
                 </tr>

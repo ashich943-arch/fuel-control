@@ -75,7 +75,7 @@ export default function Login({ onLogin }) {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                 placeholder="owner@station.com"
               />
             </div>
@@ -86,7 +86,7 @@ export default function Login({ onLogin }) {
                   type="button"
                   onClick={handleForgotPassword}
                   disabled={resetting}
-                  className="font-sans text-[11px] text-muted hover:text-goldDim underline decoration-dotted underline-offset-4 disabled:opacity-50"
+                  className="font-sans text-[11px] text-muted hover:text-primaryDim underline decoration-dotted underline-offset-4 disabled:opacity-50"
                 >
                   {resetting ? 'Sending…' : 'Forgot password?'}
                 </button>
@@ -96,7 +96,7 @@ export default function Login({ onLogin }) {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-gold/40"
+                className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-3 font-sans text-sm text-ivory outline-none focus:border-primary/40"
                 placeholder="••••••••"
               />
             </div>
@@ -110,7 +110,7 @@ export default function Login({ onLogin }) {
             <button
               type="submit"
               disabled={loading || !isSupabaseConfigured}
-              className="w-full py-3 rounded-lg bg-gold text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="w-full py-3 rounded-lg bg-primary text-white font-sans text-sm font-medium tracking-wide hover:opacity-90 transition-opacity disabled:opacity-50"
             >
               {loading ? 'Signing in…' : 'Sign In'}
             </button>
