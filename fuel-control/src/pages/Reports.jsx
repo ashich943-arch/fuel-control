@@ -417,6 +417,19 @@ export default function Reports({ isOwner }) {
             </div>
           </div>
 
+          {Math.abs(totalSales - paymentTotal) > 1 && (
+            <div className="glass-panel p-4 mb-6 border-warnLight/30 bg-warnLight/5">
+              <div className="font-sans text-[12.5px] text-warn font-semibold">
+                Rs {Math.abs(Math.round(totalSales - paymentTotal)).toLocaleString('en-IN')}{' '}
+                {totalSales > paymentTotal ? 'is unaccounted for' : 'more was recorded than sold'} in this period.
+              </div>
+              <div className="font-sans text-[11.5px] text-mutedDim mt-1">
+                Total Sales (Rs {Math.round(totalSales).toLocaleString('en-IN')}) doesn't match Cash+Card+Easypaisa+JazzCash+Credit combined
+                (Rs {Math.round(paymentTotal).toLocaleString('en-IN')}). Check Overview's recent shifts (flagged with a ⚠) or the Excel export's Shifts sheet to find which entry it is.
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mb-6">
             <div className="glass-panel p-5">
               <div className="plate-label mb-3.5">Sales by Fuel Type</div>

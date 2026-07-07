@@ -26,8 +26,15 @@ export default function ShiftsTable({ shifts, onDelete }) {
           {shifts.map((s) => {
             const liters = Number(s.closing_reading) - Number(s.opening_reading);
             const amount = liters * Number(s.price_per_liter);
+            const paymentSplitTotal =
+              (Number(s.cash_amount) || 0) +
+              (Number(s.card_amount) || 0) +
+              (Number(s.easypaisa_amount) || 0) +
+              (Number(s.jazzcash_amount) || 0) +
+              (Number(s.credit_amount) || 0);
+            const mismatch = Math.abs(amount - paymentSplitTotal) > 1;
             return (
-              <tr key={s.id} className="border-b border-hairline/50 last:border-none">
+              <tr key={s.id} className={`border-b border-hairline/50 last:border-none ${mismatch ? 'bg-warnLight/5' : ''}`}>
                 <td className="py-2.5 text-ivory">{s.shift_date}</td>
                 <td className="py-2.5 text-muted">{s.shift_type}</td>
                 <td className="py-2.5 text-ivory">{s.staff?.name || '—'}</td>
@@ -38,7 +45,17 @@ export default function ShiftsTable({ shifts, onDelete }) {
                   </span>
                 </td>
                 <td className="py-2.5 text-ivory">{liters.toFixed(1)} L</td>
-                <td className="py-2.5 text-primaryDim font-semibold">Rs {amount.toLocaleString('en-IN')}</td>
+                <td className="py-2.5 text-primaryDim font-semibold">
+                  Rs {amount.toLocaleString('en-IN')}
+                  {mismatch && (
+                    <span
+                      className="ml-1.5 text-warn"
+                      title={`Payment split (Rs ${paymentSplitTotal.toLocaleString('en-IN')}) doesn't match this amount — Rs ${Math.abs(amount - paymentSplitTotal).toLocaleString('en-IN')} ${amount > paymentSplitTotal ? 'missing' : 'extra'}.`}
+                    >
+                      ⚠
+                    </span>
+                  )}
+                </td>
                 <td className="py-2.5 text-right">
                   {onDelete && (
                     <button onClick={() => onDelete(s)} className="font-sans text-[11px] text-mutedDim hover:text-warn" title="Delete">

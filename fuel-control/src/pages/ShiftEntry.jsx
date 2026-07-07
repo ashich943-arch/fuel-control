@@ -134,6 +134,15 @@ export default function ShiftEntry() {
       setStatus({ type: 'error', msg: 'Select which customer this credit amount belongs to.' });
       return;
     }
+    if (splitMismatch) {
+      const diff = amount - paymentSplitTotal;
+      const ok = window.confirm(
+        diff > 0
+          ? `Rs ${diff.toLocaleString('en-IN')} is missing from the payment split (sale was Rs ${amount.toLocaleString('en-IN')}, but Cash+Card+Easypaisa+JazzCash+Credit only add up to Rs ${paymentSplitTotal.toLocaleString('en-IN')}). This money won't be recorded anywhere. Continue anyway?`
+          : `The payment split is Rs ${Math.abs(diff).toLocaleString('en-IN')} MORE than the sale amount (Rs ${amount.toLocaleString('en-IN')}). Double check the numbers. Continue anyway?`
+      );
+      if (!ok) return;
+    }
     if (wouldExceedCreditLimit) {
       const ok = window.confirm(
         `${selectedCreditCustomer.name}'s balance is already Rs ${Math.round(selectedCustomerBalance).toLocaleString('en-IN')}. ` +
@@ -370,8 +379,10 @@ export default function ShiftEntry() {
             ))}
           </div>
           {splitMismatch && (
-            <div className="font-sans text-[11px] text-warn mt-2">
-              Payment split (Rs {paymentSplitTotal.toLocaleString('en-IN')}) doesn't match total amount (Rs {amount.toLocaleString('en-IN')}).
+            <div className="font-sans text-[11px] text-warn mt-2 font-semibold">
+              {amount - paymentSplitTotal > 0
+                ? `Rs ${(amount - paymentSplitTotal).toLocaleString('en-IN')} is missing — Cash+Card+Easypaisa+JazzCash+Credit only add up to Rs ${paymentSplitTotal.toLocaleString('en-IN')} of the Rs ${amount.toLocaleString('en-IN')} sale.`
+                : `Rs ${(paymentSplitTotal - amount).toLocaleString('en-IN')} too much — the split adds up to more than the sale amount.`}
             </div>
           )}
           {Number(form.credit_amount) > 0 && (
