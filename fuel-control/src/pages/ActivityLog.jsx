@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { getActivityLog } from '../lib/api';
+import { getActivityLog, getAllStaff } from '../lib/api';
 import { FUEL_LABEL } from '../lib/fuelTypes';
 
-function describe(entry) {
+function describe(entry, staffById) {
   const { table_name, operation, old_data, new_data } = entry;
   const n = new_data || {};
   const o = old_data || {};
@@ -53,6 +53,11 @@ function describe(entry) {
     }
     case 'archived_periods':
       return `archived period "${n.period_label}" (${n.period_start} to ${n.period_end})`;
+    case 'salary_payments': {
+      const label = n.type === 'deduction' ? 'a deduction' : n.type === 'advance' ? 'an advance' : 'a salary payment';
+      const staffName = staffById?.[n.staff_id];
+      return `recorded ${label} of Rs ${Number(n.amount).toLocaleString('en-IN')}${staffName ? ` for ${staffName}` : ''}`;
+    }
     case 'credit_transactions': {
       const d = operation === 'DELETE' ? o : n;
       const label = d.type === 'payment' ? 'a payment' : 'a credit sale';
@@ -67,12 +72,16 @@ function describe(entry) {
 
 export default function ActivityLog() {
   const [entries, setEntries] = useState([]);
+  const [staffById, setStaffById] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    getActivityLog()
-      .then(setEntries)
+    Promise.all([getActivityLog(), getAllStaff()])
+      .then(([logEntries, staff]) => {
+        setEntries(logEntries);
+        setStaffById(Object.fromEntries(staff.map((s) => [s.id, s.name])));
+      })
       .catch((err) => {
         console.error('Failed to load activity log:', err);
         setError('Could not load the activity log.');
@@ -118,7 +127,7 @@ export default function ActivityLog() {
                       {e.actor_name || e.actor_email || 'Unknown'}
                       {e.actor_role && <span className="text-mutedDim"> · {e.actor_role}</span>}
                     </td>
-                    <td className={`py-2.5 ${e.operation === 'DELETE' ? 'text-warn' : 'text-ivory'}`}>{describe(e)}</td>
+                    <td className={`py-2.5 ${e.operation === 'DELETE' ? 'text-warn' : 'text-ivory'}`}>{describe(e, staffById)}</td>
                   </tr>
                 ))}
               </tbody>

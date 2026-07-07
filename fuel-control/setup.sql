@@ -359,6 +359,7 @@ create trigger trg_log_credit_transactions after insert or delete on credit_tran
 create trigger trg_log_suppliers after insert or update or delete on suppliers for each row execute function log_activity();
 create trigger trg_log_supplier_payments after insert or delete on supplier_payments for each row execute function log_activity();
 create trigger trg_log_archived_periods after insert on archived_periods for each row execute function log_activity();
+create trigger trg_log_salary_payments after insert on salary_payments for each row execute function log_activity();
 
 -- ============================================================
 -- Row Level Security — single-admin setup
