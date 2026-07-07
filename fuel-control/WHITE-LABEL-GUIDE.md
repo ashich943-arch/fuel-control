@@ -20,6 +20,7 @@ you're done — no hunting through pages for hardcoded values.
 | Agency name (if reselling under a different brand) | `src/lib/config.js` | `AGENCY_NAME` |
 | Brand accent color | `tailwind.config.js` | `primary`, `primaryLight`, `primaryDim` hex codes |
 | Logo | `public/logo.png`, `logo-192.png`, `logo-512.png`, `favicon.svg` | replace with client's logo |
+| App name (Install to Home Screen) | `public/manifest.json` | `name`, `short_name` |
 | Browser tab title | `index.html` | `<title>` — optional, defaults to agency name |
 
 That's the whole visual identity. No other file needs touching for a

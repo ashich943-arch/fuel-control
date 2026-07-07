@@ -7,7 +7,7 @@ export default function Staff() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [staffForm, setStaffForm] = useState({ name: '', cnic: '', phone: '', role: 'Attendant', monthly_salary: '' });
+  const [staffForm, setStaffForm] = useState({ name: '', cnic: '', phone: '', role: 'Attendant', monthly_salary: '', commission_per_liter: '' });
   const [editingId, setEditingId] = useState(null);
   const [payForm, setPayForm] = useState({ staff_id: '', amount: '', type: 'salary', note: '' });
   const [status, setStatus] = useState(null);
@@ -42,13 +42,14 @@ export default function Staff() {
       phone: s.phone || '',
       role: s.role,
       monthly_salary: String(s.monthly_salary),
+      commission_per_liter: String(s.commission_per_liter || 0),
     });
     setStatus(null);
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setStaffForm({ name: '', cnic: '', phone: '', role: 'Attendant', monthly_salary: '' });
+    setStaffForm({ name: '', cnic: '', phone: '', role: 'Attendant', monthly_salary: '', commission_per_liter: '' });
   }
 
   async function handleSaveStaff(e) {
@@ -65,6 +66,7 @@ export default function Staff() {
         phone: staffForm.phone,
         role: staffForm.role,
         monthly_salary: Number(staffForm.monthly_salary) || 0,
+        commission_per_liter: Number(staffForm.commission_per_liter) || 0,
       };
       if (editingId) {
         await updateStaff(editingId, payload);
@@ -138,7 +140,7 @@ export default function Staff() {
           <table className="w-full border-collapse font-sans text-[12.5px]">
             <thead>
               <tr>
-                {['Name', 'Role', 'Phone', 'Monthly Salary', 'Status', ''].map((h) => (
+                {['Name', 'Role', 'Phone', 'Monthly Salary', 'Commission/L', 'Status', ''].map((h) => (
                   <th key={h} className="text-left text-[10px] tracking-[0.1em] uppercase text-muted font-medium pb-2.5 border-b border-hairline">
                     {h}
                   </th>
@@ -153,6 +155,9 @@ export default function Staff() {
                   <td className="py-2.5 text-muted">{s.phone || '—'}</td>
                   <td className="py-2.5 text-primaryLight font-semibold">
                     Rs {Number(s.monthly_salary).toLocaleString('en-IN')}
+                  </td>
+                  <td className="py-2.5 text-muted">
+                    {Number(s.commission_per_liter) > 0 ? `Rs ${Number(s.commission_per_liter).toFixed(2)}` : '—'}
                   </td>
                   <td className="py-2.5">
                     <span className={`text-[10.5px] px-2 py-0.5 rounded-full ${s.active ? 'bg-emeraldLight/15 text-emeraldLight' : 'bg-mutedDim/15 text-mutedDim'}`}>
@@ -207,6 +212,16 @@ export default function Staff() {
             onChange={(e) => setStaffForm((f) => ({ ...f, monthly_salary: e.target.value }))}
             className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
           />
+          <div>
+            <input
+              type="number" step="0.01" placeholder="Commission per liter (Rs, optional)" value={staffForm.commission_per_liter}
+              onChange={(e) => setStaffForm((f) => ({ ...f, commission_per_liter: e.target.value }))}
+              className="w-full bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+            />
+            <div className="font-sans text-[10.5px] text-mutedDim mt-1.5">
+              Leave 0 if this staff member doesn't earn commission. Shown per-shift in Reports.
+            </div>
+          </div>
           <div className="flex gap-2">
             <button
               type="submit" disabled={saving}

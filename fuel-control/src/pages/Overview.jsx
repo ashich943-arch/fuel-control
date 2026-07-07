@@ -5,30 +5,50 @@ import WeeklyChart from '../components/WeeklyChart';
 import ShiftsTable from '../components/ShiftsTable';
 import PriceTicker from '../components/PriceTicker';
 import LowStockAlert from '../components/LowStockAlert';
-import { getTanks, getPrices, getRecentShifts, getTodayTotals, getWeeklyThroughput, deleteShift, getPumps } from '../lib/api';
+import { getTanks, getPrices, getRecentShifts, getTodayTotals, getWeeklyThroughput, deleteShift, getPumps, getDailyReconciliation, getShiftsInRange, getAvgFuelCostPerLiter } from '../lib/api';
+import { daysAgoString } from '../lib/date';
 
 export default function Overview({ onNavigate, isOwner }) {
   const [tanks, setTanks] = useState([]);
   const [pumps, setPumps] = useState([]);
   const [prices, setPrices] = useState([]);
   const [shifts, setShifts] = useState([]);
-  const [totals, setTotals] = useState({ totalSales: 0, litersToday: 0, expenses: 0 });
+  const [totals, setTotals] = useState({ totalSales: 0, litersToday: 0, expenses: 0, byFuel: {} });
+  const [avgFuelCost, setAvgFuelCost] = useState({});
   const [weekly, setWeekly] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [reconciliationReminder, setReconciliationReminder] = useState(false);
 
   useEffect(() => {
     load();
+    checkYesterdayReconciliation();
   }, []);
+
+  async function checkYesterdayReconciliation() {
+    try {
+      const yesterday = daysAgoString(1);
+      const [existing, yesterdayShifts] = await Promise.all([
+        getDailyReconciliation(yesterday),
+        getShiftsInRange(yesterday, yesterday),
+      ]);
+      // Only nag if yesterday actually had sales — no point reminding
+      // about a day the station was closed or nothing was logged.
+      setReconciliationReminder(!existing && (yesterdayShifts?.length || 0) > 0);
+    } catch (err) {
+      console.error('Failed to check yesterday\'s reconciliation:', err);
+    }
+  }
 
   async function load() {
     try {
-      const [t, p, s, tot, w, pmp] = await Promise.all([
+      const [t, p, s, tot, w, pmp, avgCost] = await Promise.all([
         getTanks(),
         getPrices(),
         getRecentShifts(),
         getTodayTotals(),
         getWeeklyThroughput(),
         getPumps(),
+        getAvgFuelCostPerLiter(),
       ]);
       setTanks(t);
       setPrices(p);
@@ -36,6 +56,7 @@ export default function Overview({ onNavigate, isOwner }) {
       setTotals(tot);
       setWeekly(w);
       setPumps(pmp);
+      setAvgFuelCost(avgCost);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -77,8 +98,27 @@ export default function Overview({ onNavigate, isOwner }) {
     return <div className="font-sans text-muted text-sm py-10 text-center">Loading dashboard…</div>;
   }
 
+  const fuelTypesSoldToday = Object.keys(totals.byFuel || {});
+  const missingCostData = fuelTypesSoldToday.some((fuel) => !avgFuelCost[fuel]);
+  const fuelCostToday = fuelTypesSoldToday.reduce(
+    (sum, fuel) => sum + (totals.byFuel[fuel] || 0) * (avgFuelCost[fuel] || 0),
+    0
+  );
+  const trueProfit = totals.totalSales - fuelCostToday - totals.expenses;
+
   return (
     <div>
+      {reconciliationReminder && (
+        <div className="mb-4 px-4 py-3 rounded-lg border border-warnLight/30 bg-warnLight/10 font-sans text-[12.5px] text-warn flex items-center justify-between flex-wrap gap-2">
+          <span>Yesterday's cash reconciliation hasn't been done yet.</span>
+          <button
+            onClick={() => onNavigate?.('reconciliation')}
+            className="font-medium underline decoration-dotted underline-offset-4 hover:text-warnLight"
+          >
+            Do it now →
+          </button>
+        </div>
+      )}
       <LowStockAlert tanks={tanks} onGoToInventory={() => onNavigate?.('inventory')} />
       <PriceTicker prices={prices} tanks={tanks} />
 
@@ -92,11 +132,16 @@ export default function Overview({ onNavigate, isOwner }) {
         />
         <StatPlate
           label="Net Profit (Today)"
-          value={Math.round(totals.totalSales - totals.expenses)}
+          value={Math.round(trueProfit)}
           prefix="Rs "
           trend={{
-            dir: totals.totalSales - totals.expenses >= 0 ? 'up' : 'down',
-            value: totals.totalSales - totals.expenses >= 0 ? 'Sales − Expenses' : 'Expenses exceeded sales today',
+            dir: missingCostData ? 'down' : trueProfit >= 0 ? 'up' : 'down',
+            value:
+              fuelTypesSoldToday.length === 0
+                ? 'No shifts logged yet'
+                : missingCostData
+                ? '⚠ No delivery cost recorded yet — this understates fuel cost'
+                : `Sales − Fuel Cost (Rs ${Math.round(fuelCostToday).toLocaleString('en-IN')}) − Expenses`,
             label: '',
           }}
         />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getShiftsInRange, getExpensesInRange, getDeliveriesInRange, getCreditCustomers, getAllCreditTransactions, getArchivedPeriods, archivePeriod } from '../lib/api';
+import { getShiftsInRange, getExpensesInRange, getDeliveriesInRange, getCreditCustomers, getAllCreditTransactions, getArchivedPeriods, archivePeriod, getAvgFuelCostPerLiter } from '../lib/api';
 import { localDateString, daysAgoString } from '../lib/date';
 import { FUEL_LABEL, FUEL_TAG_CLASS } from '../lib/fuelTypes';
 
@@ -26,6 +26,7 @@ function rangeToDates(range) {
 
 export default function Reports({ isOwner }) {
   const [range, setRange] = useState('week');
+  const [search, setSearch] = useState('');
   const [shifts, setShifts] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
@@ -36,6 +37,13 @@ export default function Reports({ isOwner }) {
   const [archiveForm, setArchiveForm] = useState({ label: '', start: '', end: '' });
   const [archiving, setArchiving] = useState(false);
   const [archiveStatus, setArchiveStatus] = useState(null);
+  const [avgFuelCost, setAvgFuelCost] = useState({});
+
+  useEffect(() => {
+    getAvgFuelCostPerLiter()
+      .then(setAvgFuelCost)
+      .catch((err) => console.error('Failed to load average fuel cost:', err));
+  }, []);
 
   useEffect(() => {
     if (!isOwner) return;
@@ -75,10 +83,18 @@ export default function Reports({ isOwner }) {
     return { ...s, liters, amount };
   });
 
+  const searchTerm = search.trim().toLowerCase();
+  const searchedShifts = searchTerm
+    ? shiftsWithLiters.filter(
+        (s) =>
+          (s.staff?.name || '').toLowerCase().includes(searchTerm) ||
+          (s.pump || '').toLowerCase().includes(searchTerm)
+      )
+    : [];
+
   const totalSales = shiftsWithLiters.reduce((sum, s) => sum + s.amount, 0);
   const totalLiters = shiftsWithLiters.reduce((sum, s) => sum + s.liters, 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-  const netProfit = totalSales - totalExpenses;
 
   const byFuel = {};
   for (const s of shiftsWithLiters) {
@@ -86,6 +102,18 @@ export default function Reports({ isOwner }) {
     byFuel[s.fuel_type].liters += s.liters;
     byFuel[s.fuel_type].amount += s.amount;
   }
+
+  // True profit = Sales − Cost Of Fuel Sold − Operating Expenses.
+  // Fuel cost uses the all-time weighted-average purchase price per
+  // liter (see getAvgFuelCostPerLiter) — NOT limited to this date
+  // range, since fuel sold today may have been bought weeks ago.
+  const fuelTypesSoldInPeriod = Object.keys(byFuel);
+  const missingCostData = fuelTypesSoldInPeriod.some((fuel) => !avgFuelCost[fuel]);
+  const fuelCostInPeriod = fuelTypesSoldInPeriod.reduce(
+    (sum, fuel) => sum + byFuel[fuel].liters * (avgFuelCost[fuel] || 0),
+    0
+  );
+  const netProfit = totalSales - fuelCostInPeriod - totalExpenses;
 
   const byPayment = { cash: 0, card: 0, easypaisa: 0, jazzcash: 0, credit: 0 };
   for (const s of shifts) {
@@ -100,10 +128,12 @@ export default function Reports({ isOwner }) {
   const byStaff = {};
   for (const s of shiftsWithLiters) {
     const name = s.staff?.name || 'Unassigned';
-    if (!byStaff[name]) byStaff[name] = { liters: 0, amount: 0, entryCount: 0, duties: new Set() };
+    const commissionRate = Number(s.staff?.commission_per_liter) || 0;
+    if (!byStaff[name]) byStaff[name] = { liters: 0, amount: 0, entryCount: 0, commission: 0, duties: new Set() };
     byStaff[name].liters += s.liters;
     byStaff[name].amount += s.amount;
     byStaff[name].entryCount += 1;
+    byStaff[name].commission += s.liters * commissionRate;
     byStaff[name].duties.add(`${s.shift_date}_${s.shift_type}`);
   }
   const staffRows = Object.entries(byStaff)
@@ -124,9 +154,10 @@ export default function Reports({ isOwner }) {
     try {
       const summaryRows = [
         { metric: 'Total Sales', value: totalSales },
+        { metric: 'Fuel Cost (avg. purchase price)', value: fuelCostInPeriod },
+        { metric: 'Total Expenses', value: totalExpenses },
         { metric: 'Net Profit', value: netProfit },
         { metric: 'Liters Sold', value: totalLiters },
-        { metric: 'Total Expenses', value: totalExpenses },
         { metric: '', value: '' },
         { metric: 'Cash', value: byPayment.cash },
         { metric: 'Card', value: byPayment.card },
@@ -240,17 +271,34 @@ export default function Reports({ isOwner }) {
       const pTotalSales = swl.reduce((sum, sh) => sum + sh.amount, 0);
       const pTotalLiters = swl.reduce((sum, sh) => sum + sh.liters, 0);
       const pTotalExpenses = (e2 || []).reduce((sum, ex) => sum + Number(ex.amount), 0);
-      const pNetProfit = pTotalSales - pTotalExpenses;
       const pByFuel = {};
       for (const sh of swl) {
         if (!pByFuel[sh.fuel_type]) pByFuel[sh.fuel_type] = { liters: 0, amount: 0 };
         pByFuel[sh.fuel_type].liters += sh.liters;
         pByFuel[sh.fuel_type].amount += sh.amount;
       }
+      const pFuelCost = Object.keys(pByFuel).reduce(
+        (sum, fuel) => sum + pByFuel[fuel].liters * (avgFuelCost[fuel] || 0),
+        0
+      );
+      const pNetProfit = pTotalSales - pFuelCost - pTotalExpenses;
+      const pMissingCostData = Object.keys(pByFuel).some((fuel) => !avgFuelCost[fuel]);
+      if (pMissingCostData) {
+        const ok = window.confirm(
+          'No delivery cost is on record for at least one fuel type sold in this period, so the Net Profit figure below understates the real fuel cost (it\'s treating the missing cost as Rs 0). ' +
+          'This will be archived permanently as-is. Continue anyway, or cancel and record the missing delivery first?'
+        );
+        if (!ok) {
+          setArchiving(false);
+          return;
+        }
+      }
 
       const snapshot = {
         totalSales: pTotalSales,
         netProfit: pNetProfit,
+        fuelCost: pFuelCost,
+        costDataComplete: !pMissingCostData,
         totalLiters: pTotalLiters,
         totalExpenses: pTotalExpenses,
         byFuel: pByFuel,
@@ -272,9 +320,10 @@ export default function Reports({ isOwner }) {
           rows: [
             { metric: 'Period', value: `${archiveForm.start} to ${archiveForm.end}` },
             { metric: 'Total Sales', value: pTotalSales },
+            { metric: 'Fuel Cost (avg. purchase price)', value: pFuelCost },
+            { metric: 'Total Expenses', value: pTotalExpenses },
             { metric: 'Net Profit', value: pNetProfit },
             { metric: 'Liters Sold', value: pTotalLiters },
-            { metric: 'Total Expenses', value: pTotalExpenses },
           ],
         },
         {
@@ -382,6 +431,58 @@ export default function Reports({ isOwner }) {
         </div>
       </div>
 
+      <div className="mb-5">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={'Search by staff name or pump (e.g. "Bilal" or "P-3")…'}
+          className="w-full max-w-md bg-obsidian border border-hairline rounded-lg px-4 py-2.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+        />
+      </div>
+
+      {searchTerm && (
+        <div className="glass-panel p-5 mb-6">
+          <div className="plate-label mb-3">
+            {searchedShifts.length} shift{searchedShifts.length === 1 ? '' : 's'} matching "{search}" in {RANGES.find((r) => r.id === range)?.label.toLowerCase()}
+          </div>
+          {searchedShifts.length === 0 ? (
+            <div className="font-sans text-mutedDim text-sm py-4 text-center">No matching shifts in this period.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse font-sans text-[12.5px]">
+                <thead>
+                  <tr>
+                    {['Date', 'Shift', 'Staff', 'Pump', 'Fuel', 'Liters', 'Amount'].map((h) => (
+                      <th key={h} className="text-left text-[10px] tracking-[0.1em] uppercase text-muted font-medium pb-2.5 border-b border-hairline">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchedShifts.map((s) => (
+                    <tr key={s.id} className="border-b border-hairline/50 last:border-none">
+                      <td className="py-2.5 text-ivory">{s.shift_date}</td>
+                      <td className="py-2.5 text-muted">{s.shift_type}</td>
+                      <td className="py-2.5 text-ivory">{s.staff?.name || '—'}</td>
+                      <td className="py-2.5 text-ivory">{s.pump}</td>
+                      <td className="py-2.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[10.5px] ${FUEL_TAG_CLASS[s.fuel_type]}`}>
+                          {FUEL_LABEL[s.fuel_type]}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-muted">{s.liters.toFixed(1)} L</td>
+                      <td className="py-2.5 text-primaryDim font-semibold">Rs {Math.round(s.amount).toLocaleString('en-IN')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="font-sans text-muted text-sm py-10 text-center">Crunching numbers…</div>
       ) : shifts.length === 0 && expenses.length === 0 ? (
@@ -401,6 +502,13 @@ export default function Reports({ isOwner }) {
               <div className="plate-label">Net Profit</div>
               <div className="font-display text-2xl text-ivory mt-2 font-bold">
                 Rs {Math.round(netProfit).toLocaleString('en-IN')}
+              </div>
+              <div className={`font-sans text-[10px] mt-1.5 ${missingCostData ? 'text-warn font-semibold' : 'text-mutedDim'}`}>
+                {fuelTypesSoldInPeriod.length === 0
+                  ? 'No shifts yet'
+                  : missingCostData
+                  ? '⚠ No delivery cost recorded — this understates fuel cost'
+                  : `Sales − Fuel Cost (Rs ${Math.round(fuelCostInPeriod).toLocaleString('en-IN')}) − Expenses`}
               </div>
             </div>
             <div className="glass-panel p-5">
@@ -517,7 +625,7 @@ export default function Reports({ isOwner }) {
                 <table className="w-full border-collapse font-sans text-[12.5px]">
                   <thead>
                     <tr>
-                      {['Staff', 'Duties', 'Pump Entries', 'Liters', 'Sales'].map((h) => (
+                      {['Staff', 'Duties', 'Pump Entries', 'Liters', 'Sales', 'Commission'].map((h) => (
                         <th key={h} className="text-left text-[10px] tracking-[0.1em] uppercase text-muted font-medium pb-2.5 border-b border-hairline">
                           {h}
                         </th>
@@ -532,6 +640,9 @@ export default function Reports({ isOwner }) {
                         <td className="py-2.5 text-muted">{v.entryCount}</td>
                         <td className="py-2.5 text-muted">{Math.round(v.liters)} L</td>
                         <td className="py-2.5 text-primaryDim font-semibold">Rs {Math.round(v.amount).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 text-emerald font-semibold">
+                          {v.commission > 0 ? `Rs ${Math.round(v.commission).toLocaleString('en-IN')}` : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -693,7 +804,12 @@ export default function Reports({ isOwner }) {
                         <td className="py-2.5 text-ivory">{p.period_label}</td>
                         <td className="py-2.5 text-muted">{p.period_start} → {p.period_end}</td>
                         <td className="py-2.5 text-primaryDim font-semibold">Rs {Math.round(p.totals_snapshot.totalSales).toLocaleString('en-IN')}</td>
-                        <td className="py-2.5 text-emerald font-semibold">Rs {Math.round(p.totals_snapshot.netProfit).toLocaleString('en-IN')}</td>
+                        <td className="py-2.5 text-emerald font-semibold">
+                          Rs {Math.round(p.totals_snapshot.netProfit).toLocaleString('en-IN')}
+                          {p.totals_snapshot.costDataComplete === false && (
+                            <span className="ml-1 text-warn" title="Fuel cost data was incomplete when this was archived — this figure may understate real cost.">⚠</span>
+                          )}
+                        </td>
                         <td className="py-2.5 text-mutedDim">{new Date(p.archived_at).toLocaleDateString('en-GB')}</td>
                       </tr>
                     ))}

@@ -53,6 +53,10 @@ in order:
     date range was reviewed and "closed", with a locked-in totals
     snapshot. Does not delete or move any underlying data — see the
     comment at the top of that migration for why.
+13. `supabase-schema-v13-staff-commission.sql` — adds
+    `commission_per_liter` to `staff` (optional, defaults to 0) so
+    Reports can show each staff member's earned commission for the
+    selected period.
 
 `setup.sql` is the sum of all of these (minus the dead `sales` table and
 the superseded v6 reconciliation columns), kept up to date going forward.

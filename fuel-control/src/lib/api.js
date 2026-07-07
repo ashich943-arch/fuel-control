@@ -208,14 +208,14 @@ export async function getTodayTotals() {
   if (!isSupabaseConfigured) {
     const totalSales = mockShifts.reduce((s, t) => s + t.amount, 0);
     const litersToday = mockShifts.reduce((s, t) => s + t.liters, 0);
-    return { totalSales, litersToday, expenses: mockExpensesToday };
+    return { totalSales, litersToday, expenses: mockExpensesToday, byFuel: {} };
   }
   const today = localDateString();
 
   const [shiftsRes, expensesRes] = await Promise.all([
     supabase
       .from('shifts')
-      .select('opening_reading, closing_reading, price_per_liter')
+      .select('opening_reading, closing_reading, price_per_liter, fuel_type')
       .eq('shift_date', today),
     supabase.from('expenses').select('amount').eq('spent_at', today),
   ]);
@@ -232,7 +232,44 @@ export async function getTodayTotals() {
   );
   const expenses = expensesRes.data.reduce((s, r) => s + Number(r.amount), 0);
 
-  return { totalSales, litersToday, expenses };
+  // Liters sold per fuel type today — needed to work out true cost
+  // of goods sold (each fuel type has a different purchase cost).
+  const byFuel = {};
+  for (const r of shiftsRes.data) {
+    const liters = Number(r.closing_reading) - Number(r.opening_reading);
+    if (!byFuel[r.fuel_type]) byFuel[r.fuel_type] = 0;
+    byFuel[r.fuel_type] += liters;
+  }
+
+  return { totalSales, litersToday, expenses, byFuel };
+}
+
+// Weighted-average purchase cost per liter, per fuel type, across
+// every delivery ever recorded — used to calculate the true cost of
+// fuel sold (COGS) for the Net Profit figure. Deliberately NOT scoped
+// to any date range: if today has no delivery, the fuel sold today
+// still came from stock bought at some point, so we need the average
+// cost of everything ever bought, not just what arrived today.
+export async function getAvgFuelCostPerLiter() {
+  if (!isSupabaseConfigured) return {};
+  const { data, error } = await supabase
+    .from('tank_deliveries')
+    .select('liters, rate_per_liter, tanks(fuel_type)');
+  if (error) throw error;
+
+  const totals = {};
+  for (const d of data) {
+    const fuel = d.tanks?.fuel_type;
+    if (!fuel) continue;
+    if (!totals[fuel]) totals[fuel] = { liters: 0, cost: 0 };
+    totals[fuel].liters += Number(d.liters);
+    totals[fuel].cost += Number(d.liters) * Number(d.rate_per_liter);
+  }
+  const avg = {};
+  for (const fuel of Object.keys(totals)) {
+    avg[fuel] = totals[fuel].liters > 0 ? totals[fuel].cost / totals[fuel].liters : 0;
+  }
+  return avg;
 }
 
 export async function getWeeklyThroughput() {
@@ -411,7 +448,7 @@ export async function getShiftsInRange(startDate, endDate) {
   if (!isSupabaseConfigured) return mockShifts;
   const { data, error } = await supabase
     .from('shifts')
-    .select('*, staff(name)')
+    .select('*, staff(name, commission_per_liter)')
     .gte('shift_date', startDate)
     .lte('shift_date', endDate)
     .order('shift_date', { ascending: false });

@@ -81,6 +81,7 @@ create table if not exists staff (
   phone text,
   role text not null default 'Attendant' check (role in ('Attendant', 'Cashier', 'Manager')),
   monthly_salary numeric not null default 0,
+  commission_per_liter numeric not null default 0,
   active boolean not null default true,
   created_at timestamptz default now()
 );
