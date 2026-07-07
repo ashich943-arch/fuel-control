@@ -92,6 +92,11 @@ export default function Expenses() {
                 </option>
               ))}
             </select>
+            {form.category === 'Staff Salary' && (
+              <div className="font-sans text-[10.5px] text-warn mt-1.5">
+                If this is a payment to a specific staff member, use Staff → Record Payment instead — it already counts toward Net Profit, so logging it here too would double-count it.
+              </div>
+            )}
           </div>
           <div>
             <label className="plate-label block mb-2">Amount (Rs)</label>

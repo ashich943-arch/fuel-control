@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getShiftsInRange, getExpensesInRange, getDeliveriesInRange, getCreditCustomers, getAllCreditTransactions, getArchivedPeriods, archivePeriod, getAvgFuelCostPerLiter } from '../lib/api';
+import { getShiftsInRange, getExpensesInRange, getDeliveriesInRange, getCreditCustomers, getAllCreditTransactions, getArchivedPeriods, archivePeriod, getAvgFuelCostPerLiter, getSalaryPaymentsInRange } from '../lib/api';
 import { localDateString, daysAgoString } from '../lib/date';
 import { FUEL_LABEL, FUEL_TAG_CLASS } from '../lib/fuelTypes';
 
@@ -29,6 +29,7 @@ export default function Reports({ isOwner }) {
   const [search, setSearch] = useState('');
   const [shifts, setShifts] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [salaryPayments, setSalaryPayments] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [outstandingCredit, setOutstandingCredit] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -55,11 +56,17 @@ export default function Reports({ isOwner }) {
   useEffect(() => {
     const { start, end } = rangeToDates(range);
     setLoading(true);
-    Promise.all([getShiftsInRange(start, end), getExpensesInRange(start, end), getDeliveriesInRange(start, end)])
-      .then(([s, e, d]) => {
+    Promise.all([
+      getShiftsInRange(start, end),
+      getExpensesInRange(start, end),
+      getDeliveriesInRange(start, end),
+      getSalaryPaymentsInRange(start, end),
+    ])
+      .then(([s, e, d, sal]) => {
         setShifts(s || []);
         setExpenses(e || []);
         setDeliveries(d || []);
+        setSalaryPayments(sal || []);
       })
       .catch((err) => console.error('Failed to load report data:', err))
       .finally(() => setLoading(false));
@@ -96,6 +103,17 @@ export default function Reports({ isOwner }) {
   const totalLiters = shiftsWithLiters.reduce((sum, s) => sum + s.liters, 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
 
+  // Staff salary/advance payments are real cash outflows — they should
+  // reduce profit the same as any other expense. A "deduction" is money
+  // withheld FROM staff (e.g. a penalty), so it subtracts instead of adds.
+  // These were previously only visible on the Staff page and never
+  // affected Net Profit anywhere, which understated real costs.
+  const staffPaymentTotal = salaryPayments.reduce((sum, p) => {
+    const amt = Number(p.amount) || 0;
+    return sum + (p.type === 'deduction' ? -amt : amt);
+  }, 0);
+  const totalExpensesWithStaffPayments = totalExpenses + staffPaymentTotal;
+
   const byFuel = {};
   for (const s of shiftsWithLiters) {
     if (!byFuel[s.fuel_type]) byFuel[s.fuel_type] = { liters: 0, amount: 0 };
@@ -113,7 +131,7 @@ export default function Reports({ isOwner }) {
     (sum, fuel) => sum + byFuel[fuel].liters * (avgFuelCost[fuel] || 0),
     0
   );
-  const netProfit = totalSales - fuelCostInPeriod - totalExpenses;
+  const netProfit = totalSales - fuelCostInPeriod - totalExpensesWithStaffPayments;
 
   const byPayment = { cash: 0, card: 0, easypaisa: 0, jazzcash: 0, credit: 0 };
   for (const s of shifts) {
@@ -128,7 +146,7 @@ export default function Reports({ isOwner }) {
   const byStaff = {};
   for (const s of shiftsWithLiters) {
     const name = s.staff?.name || 'Unassigned';
-    const commissionRate = Number(s.staff?.commission_per_liter) || 0;
+    const commissionRate = Number(s.commission_rate) || 0;
     if (!byStaff[name]) byStaff[name] = { liters: 0, amount: 0, entryCount: 0, commission: 0, duties: new Set() };
     byStaff[name].liters += s.liters;
     byStaff[name].amount += s.amount;
@@ -155,7 +173,8 @@ export default function Reports({ isOwner }) {
       const summaryRows = [
         { metric: 'Total Sales', value: totalSales },
         { metric: 'Fuel Cost (avg. purchase price)', value: fuelCostInPeriod },
-        { metric: 'Total Expenses', value: totalExpenses },
+        { metric: 'Operating Expenses', value: totalExpenses },
+        { metric: 'Staff Salary/Advance Payments', value: staffPaymentTotal },
         { metric: 'Net Profit', value: netProfit },
         { metric: 'Liters Sold', value: totalLiters },
         { metric: '', value: '' },
@@ -238,6 +257,25 @@ export default function Reports({ isOwner }) {
           ],
           rows: expenseRows,
         },
+        {
+          name: 'Staff Performance',
+          columns: [
+            { header: 'Staff', key: 'staff', width: 18 },
+            { header: 'Duties', key: 'duties', width: 10 },
+            { header: 'Pump Entries', key: 'entries', width: 14 },
+            { header: 'Liters', key: 'liters', width: 12, numFmt: '#,##0.0' },
+            { header: 'Sales', key: 'sales', width: 14, numFmt: '#,##0.00' },
+            { header: 'Commission', key: 'commission', width: 14, numFmt: '#,##0.00' },
+          ],
+          rows: staffRows.map(([name, v]) => ({
+            staff: name,
+            duties: v.dutyCount,
+            entries: v.entryCount,
+            liters: Number(v.liters.toFixed(1)),
+            sales: Number(v.amount.toFixed(2)),
+            commission: Number(v.commission.toFixed(2)),
+          })),
+        },
       ]);
     } catch (err) {
       console.error('Failed to export report:', err);
@@ -260,9 +298,10 @@ export default function Reports({ isOwner }) {
     setArchiving(true);
     setArchiveStatus(null);
     try {
-      const [s, e2] = await Promise.all([
+      const [s, e2, sal] = await Promise.all([
         getShiftsInRange(archiveForm.start, archiveForm.end),
         getExpensesInRange(archiveForm.start, archiveForm.end),
+        getSalaryPaymentsInRange(archiveForm.start, archiveForm.end),
       ]);
       const swl = (s || []).map((sh) => {
         const liters = Math.max(0, Number(sh.closing_reading) - Number(sh.opening_reading));
@@ -270,12 +309,27 @@ export default function Reports({ isOwner }) {
       });
       const pTotalSales = swl.reduce((sum, sh) => sum + sh.amount, 0);
       const pTotalLiters = swl.reduce((sum, sh) => sum + sh.liters, 0);
-      const pTotalExpenses = (e2 || []).reduce((sum, ex) => sum + Number(ex.amount), 0);
+      const pOperatingExpenses = (e2 || []).reduce((sum, ex) => sum + Number(ex.amount), 0);
+      const pStaffPayments = (sal || []).reduce((sum, p) => {
+        const amt = Number(p.amount) || 0;
+        return sum + (p.type === 'deduction' ? -amt : amt);
+      }, 0);
+      const pTotalExpenses = pOperatingExpenses + pStaffPayments;
       const pByFuel = {};
       for (const sh of swl) {
         if (!pByFuel[sh.fuel_type]) pByFuel[sh.fuel_type] = { liters: 0, amount: 0 };
         pByFuel[sh.fuel_type].liters += sh.liters;
         pByFuel[sh.fuel_type].amount += sh.amount;
+      }
+      const pByStaff = {};
+      for (const sh of swl) {
+        const name = sh.staff?.name || 'Unassigned';
+        const rate = Number(sh.commission_rate) || 0;
+        if (!pByStaff[name]) pByStaff[name] = { liters: 0, amount: 0, commission: 0, entryCount: 0 };
+        pByStaff[name].liters += sh.liters;
+        pByStaff[name].amount += sh.amount;
+        pByStaff[name].commission += sh.liters * rate;
+        pByStaff[name].entryCount += 1;
       }
       const pFuelCost = Object.keys(pByFuel).reduce(
         (sum, fuel) => sum + pByFuel[fuel].liters * (avgFuelCost[fuel] || 0),
@@ -321,7 +375,8 @@ export default function Reports({ isOwner }) {
             { metric: 'Period', value: `${archiveForm.start} to ${archiveForm.end}` },
             { metric: 'Total Sales', value: pTotalSales },
             { metric: 'Fuel Cost (avg. purchase price)', value: pFuelCost },
-            { metric: 'Total Expenses', value: pTotalExpenses },
+            { metric: 'Operating Expenses', value: pOperatingExpenses },
+            { metric: 'Staff Salary/Advance Payments', value: pStaffPayments },
             { metric: 'Net Profit', value: pNetProfit },
             { metric: 'Liters Sold', value: pTotalLiters },
           ],
@@ -356,6 +411,23 @@ export default function Reports({ isOwner }) {
             { header: 'Amount', key: 'amount', width: 14, numFmt: '#,##0.00' },
           ],
           rows: (e2 || []).map((ex) => ({ date: ex.spent_at, category: ex.category, note: ex.note || '', amount: Number(ex.amount) })),
+        },
+        {
+          name: 'Staff Performance',
+          columns: [
+            { header: 'Staff', key: 'staff', width: 18 },
+            { header: 'Pump Entries', key: 'entries', width: 14 },
+            { header: 'Liters', key: 'liters', width: 12, numFmt: '#,##0.0' },
+            { header: 'Sales', key: 'sales', width: 14, numFmt: '#,##0.00' },
+            { header: 'Commission', key: 'commission', width: 14, numFmt: '#,##0.00' },
+          ],
+          rows: Object.entries(pByStaff).map(([name, v]) => ({
+            staff: name,
+            entries: v.entryCount,
+            liters: Number(v.liters.toFixed(1)),
+            sales: Number(v.amount.toFixed(2)),
+            commission: Number(v.commission.toFixed(2)),
+          })),
         },
       ]);
 
@@ -508,7 +580,7 @@ export default function Reports({ isOwner }) {
                   ? 'No shifts yet'
                   : missingCostData
                   ? '⚠ No delivery cost recorded — this understates fuel cost'
-                  : `Sales − Fuel Cost (Rs ${Math.round(fuelCostInPeriod).toLocaleString('en-IN')}) − Expenses`}
+                  : `Sales − Fuel Cost (Rs ${Math.round(fuelCostInPeriod).toLocaleString('en-IN')}) − Expenses (incl. staff payments)`}
               </div>
             </div>
             <div className="glass-panel p-5">
@@ -520,7 +592,10 @@ export default function Reports({ isOwner }) {
             <div className="glass-panel p-5">
               <div className="plate-label">Total Expenses</div>
               <div className="font-display text-2xl text-ivory mt-2 font-bold">
-                Rs {Math.round(totalExpenses).toLocaleString('en-IN')}
+                Rs {Math.round(totalExpensesWithStaffPayments).toLocaleString('en-IN')}
+              </div>
+              <div className="font-sans text-[10px] text-mutedDim mt-1.5">
+                Rs {Math.round(totalExpenses).toLocaleString('en-IN')} operating + Rs {Math.round(staffPaymentTotal).toLocaleString('en-IN')} staff salary/advance
               </div>
             </div>
           </div>

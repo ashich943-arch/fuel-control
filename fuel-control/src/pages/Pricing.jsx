@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 import { getPrices, getPriceHistory, setPrice } from '../lib/api';
+import { FUEL_TYPES, FUEL_LABEL, FUEL_TAG_CLASS } from '../lib/fuelTypes';
 
-const FUELS = [
-  { id: 'petrol', label: 'Petrol', tag: 'bg-primary/15 text-primaryLight' },
-  { id: 'diesel', label: 'Diesel', tag: 'bg-emeraldLight/15 text-emeraldLight' },
-  { id: 'hioctane', label: 'Hi-Octane', tag: 'bg-warn/15 text-warnLight' },
-];
+const FUELS = FUEL_TYPES.map((id) => ({ id, label: FUEL_LABEL[id], tag: FUEL_TAG_CLASS[id] }));
 
 export default function Pricing() {
   const [prices, setPrices] = useState([]);

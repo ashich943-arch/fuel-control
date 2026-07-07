@@ -212,15 +212,17 @@ export async function getTodayTotals() {
   }
   const today = localDateString();
 
-  const [shiftsRes, expensesRes] = await Promise.all([
+  const [shiftsRes, expensesRes, salaryRes] = await Promise.all([
     supabase
       .from('shifts')
       .select('opening_reading, closing_reading, price_per_liter, fuel_type')
       .eq('shift_date', today),
     supabase.from('expenses').select('amount').eq('spent_at', today),
+    supabase.from('salary_payments').select('amount, type').eq('paid_at', today),
   ]);
   if (shiftsRes.error) throw shiftsRes.error;
   if (expensesRes.error) throw expensesRes.error;
+  if (salaryRes.error) throw salaryRes.error;
 
   const litersToday = shiftsRes.data.reduce(
     (s, r) => s + (Number(r.closing_reading) - Number(r.opening_reading)),
@@ -230,7 +232,16 @@ export async function getTodayTotals() {
     (s, r) => s + (Number(r.closing_reading) - Number(r.opening_reading)) * Number(r.price_per_liter),
     0
   );
-  const expenses = expensesRes.data.reduce((s, r) => s + Number(r.amount), 0);
+  const operatingExpenses = expensesRes.data.reduce((s, r) => s + Number(r.amount), 0);
+  // Staff salary/advance payments are real cash outflows too — a
+  // "deduction" is money withheld FROM staff, so it subtracts rather
+  // than adds. Previously these were only visible on the Staff page
+  // and never reduced Net Profit anywhere.
+  const staffPayments = salaryRes.data.reduce((s, r) => {
+    const amt = Number(r.amount) || 0;
+    return s + (r.type === 'deduction' ? -amt : amt);
+  }, 0);
+  const expenses = operatingExpenses + staffPayments;
 
   // Liters sold per fuel type today — needed to work out true cost
   // of goods sold (each fuel type has a different purchase cost).
@@ -241,7 +252,7 @@ export async function getTodayTotals() {
     byFuel[r.fuel_type] += liters;
   }
 
-  return { totalSales, litersToday, expenses, byFuel };
+  return { totalSales, litersToday, expenses, operatingExpenses, staffPayments, byFuel };
 }
 
 // Weighted-average purchase cost per liter, per fuel type, across
@@ -448,7 +459,7 @@ export async function getShiftsInRange(startDate, endDate) {
   if (!isSupabaseConfigured) return mockShifts;
   const { data, error } = await supabase
     .from('shifts')
-    .select('*, staff(name, commission_per_liter)')
+    .select('*, staff(name)')
     .gte('shift_date', startDate)
     .lte('shift_date', endDate)
     .order('shift_date', { ascending: false });
@@ -474,6 +485,21 @@ export async function getSalaryPayments(staffId) {
   let q = supabase.from('salary_payments').select('*, staff(name)').order('paid_at', { ascending: false });
   if (staffId) q = q.eq('staff_id', staffId);
   const { data, error } = await q;
+  if (error) throw error;
+  return data;
+}
+
+// Used by Reports/Overview so staff salary/advance/deduction payments
+// actually reduce Net Profit — previously these were only visible on
+// the Staff page and never subtracted from profit anywhere, which
+// understated real operating costs.
+export async function getSalaryPaymentsInRange(startDate, endDate) {
+  if (!isSupabaseConfigured) return [];
+  const { data, error } = await supabase
+    .from('salary_payments')
+    .select('amount, type, paid_at')
+    .gte('paid_at', startDate)
+    .lte('paid_at', endDate);
   if (error) throw error;
   return data;
 }

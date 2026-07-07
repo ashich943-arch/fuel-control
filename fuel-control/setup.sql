@@ -110,6 +110,7 @@ create table if not exists shifts (
   easypaisa_amount numeric not null default 0,
   jazzcash_amount numeric not null default 0,
   credit_amount numeric not null default 0,
+  commission_rate numeric not null default 0,
   created_at timestamptz default now(),
   constraint closing_after_opening check (closing_reading >= opening_reading)
   -- Note: no uniqueness constraint on (pump, shift_date, shift_type) —
@@ -250,17 +251,22 @@ declare
   v_liters numeric;
   v_amount numeric;
   v_credit_liters numeric;
+  v_commission_rate numeric;
 begin
   v_liters := greatest(0, p_closing - p_opening);
   v_amount := v_liters * p_price;
 
+  select commission_per_liter into v_commission_rate from staff where id = p_staff_id;
+
   insert into shifts (
     staff_id, pump, fuel_type, shift_type, shift_date,
     opening_reading, closing_reading, price_per_liter,
-    cash_amount, card_amount, easypaisa_amount, jazzcash_amount, credit_amount
+    cash_amount, card_amount, easypaisa_amount, jazzcash_amount, credit_amount,
+    commission_rate
   ) values (
     p_staff_id, p_pump, p_fuel_type, p_shift_type, p_shift_date,
-    p_opening, p_closing, p_price, p_cash, p_card, p_easypaisa, p_jazzcash, p_credit
+    p_opening, p_closing, p_price, p_cash, p_card, p_easypaisa, p_jazzcash, p_credit,
+    coalesce(v_commission_rate, 0)
   )
   returning * into v_shift;
 

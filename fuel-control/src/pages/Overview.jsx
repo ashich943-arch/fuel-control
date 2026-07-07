@@ -150,7 +150,11 @@ export default function Overview({ onNavigate, isOwner }) {
           label="Expenses (Today)"
           value={Math.round(totals.expenses)}
           prefix="Rs "
-          trend={totals.expenses === 0 ? { dir: 'down', value: 'None logged', label: '' } : null}
+          trend={
+            totals.expenses === 0
+              ? { dir: 'down', value: 'None logged', label: '' }
+              : { dir: 'down', value: `Rs ${Math.round(totals.operatingExpenses || 0).toLocaleString('en-IN')} operating + Rs ${Math.round(totals.staffPayments || 0).toLocaleString('en-IN')} staff`, label: '' }
+          }
         />
       </div>
 

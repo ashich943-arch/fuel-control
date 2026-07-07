@@ -49,3 +49,10 @@ standard rebrand.
   after a darker theme this was likely adapted from, but hold light-UI
   values now. Harmless, just not self-descriptive — leave alone unless
   doing a full re-theme.
+- `src/components/TankGauge.jsx` draws its gauge with raw SVG and a
+  few hardcoded hex colors (matching `primary`/`primaryLight` at the
+  time of writing) instead of referencing `tailwind.config.js` — SVG
+  strokes can't use Tailwind classes directly, so this was simplest.
+  If rebranding the accent color for a new client, update the hex
+  values in this file too, or the gauge will keep the old color while
+  the rest of the app updates.
