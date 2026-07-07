@@ -56,7 +56,18 @@ in order:
 13. `supabase-schema-v13-staff-commission.sql` — adds
     `commission_per_liter` to `staff` (optional, defaults to 0) so
     Reports can show each staff member's earned commission for the
-    selected period.
+    selected period. Also adds `shifts.commission_rate`, which locks
+    in the rate at the time of each shift (same principle as
+    `price_per_liter`) so a later rate change doesn't rewrite history.
+14. `supabase-schema-v14-log-salary-payments.sql` — adds the Activity
+    Log trigger for `salary_payments` (Staff → Record Payment), which
+    was missed when the log was first built.
+15. `supabase-schema-v15-more-activity-log-coverage.sql` — adds
+    Activity Log triggers for `credit_customers` (add/edit/remove a
+    Udhaar customer), and for `tanks`/`pumps` configuration changes
+    (new tank, capacity/threshold changes, pump reassignment) —
+    deliberately excluding ordinary stock-level updates, which happen
+    on every shift/delivery and would flood the log.
 
 `setup.sql` is the sum of all of these (minus the dead `sales` table and
 the superseded v6 reconciliation columns), kept up to date going forward.

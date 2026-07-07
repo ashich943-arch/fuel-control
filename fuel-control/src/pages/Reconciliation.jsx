@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { getDeclaredCashForDate, getDailyReconciliation, saveDailyReconciliation, getReconciliationHistory } from '../lib/api';
 import { localDateString } from '../lib/date';
 
+const DENOMINATIONS = [5000, 1000, 500, 100, 50, 20, 10];
+
 export default function Reconciliation() {
   const [date, setDate] = useState(localDateString());
   const [declaredCash, setDeclaredCash] = useState(0);
@@ -12,9 +14,13 @@ export default function Reconciliation() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(null);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [denomCounts, setDenomCounts] = useState({});
 
   useEffect(() => {
     load();
+    setDenomCounts({});
+    setShowCalculator(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date]);
 
@@ -59,6 +65,7 @@ export default function Reconciliation() {
   }
 
   const discrepancy = actualInput !== '' ? Number(actualInput) - declaredCash : null;
+  const calculatorTotal = DENOMINATIONS.reduce((sum, d) => sum + d * (Number(denomCounts[d]) || 0), 0);
 
   if (loading) return <div className="font-sans text-muted text-sm py-10 text-center">Loading…</div>;
 
@@ -95,7 +102,47 @@ export default function Reconciliation() {
         )}
 
         <div>
-          <label className="plate-label block mb-2">Actual Cash Counted (Rs)</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="plate-label mb-0">Actual Cash Counted (Rs)</label>
+            <button
+              type="button"
+              onClick={() => setShowCalculator((v) => !v)}
+              className="font-sans text-[11px] text-primaryDim hover:text-primary underline decoration-dotted underline-offset-4"
+            >
+              {showCalculator ? 'Hide calculator' : 'Count by notes instead'}
+            </button>
+          </div>
+
+          {showCalculator && (
+            <div className="glass-panel p-4 bg-obsidian mb-3 flex flex-col gap-2.5">
+              {DENOMINATIONS.map((d) => (
+                <div key={d} className="flex items-center gap-3">
+                  <span className="font-sans text-[12.5px] text-muted w-20 shrink-0">Rs {d.toLocaleString('en-IN')}</span>
+                  <span className="font-sans text-[12.5px] text-mutedDim">×</span>
+                  <input
+                    type="number" min="0" placeholder="0"
+                    value={denomCounts[d] || ''}
+                    onChange={(e) => setDenomCounts((c) => ({ ...c, [d]: e.target.value }))}
+                    className="w-24 bg-panel border border-hairline rounded-lg px-3 py-1.5 font-sans text-sm text-ivory outline-none focus:border-primary/40"
+                  />
+                  <span className="font-sans text-[12.5px] text-mutedDim ml-auto">
+                    = Rs {(d * (Number(denomCounts[d]) || 0)).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between pt-2 border-t border-hairline">
+                <span className="font-sans text-[13px] text-ivory font-semibold">Total: Rs {calculatorTotal.toLocaleString('en-IN')}</span>
+                <button
+                  type="button"
+                  onClick={() => setActualInput(String(calculatorTotal))}
+                  className="font-sans text-[12px] font-medium text-white bg-primary rounded-lg px-3.5 py-1.5 hover:opacity-90 transition-opacity"
+                >
+                  Use This Total
+                </button>
+              </div>
+            </div>
+          )}
+
           <input
             type="number" value={actualInput}
             onChange={(e) => setActualInput(e.target.value)}

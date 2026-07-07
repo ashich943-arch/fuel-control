@@ -542,6 +542,13 @@ export async function addCreditCustomer(customer) {
   return data;
 }
 
+export async function updateCreditCustomer(id, fields) {
+  if (!isSupabaseConfigured) return;
+  const { data, error } = await supabase.from('credit_customers').update(fields).eq('id', id).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function getAllCreditTransactions() {
   if (!isSupabaseConfigured) return [];
   const { data, error } = await supabase

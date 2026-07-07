@@ -4,8 +4,22 @@ import TankGauge from '../components/TankGauge';
 import WeeklyChart from '../components/WeeklyChart';
 import ShiftsTable from '../components/ShiftsTable';
 import PriceTicker from '../components/PriceTicker';
-import LowStockAlert from '../components/LowStockAlert';
-import { getTanks, getPrices, getRecentShifts, getTodayTotals, getWeeklyThroughput, deleteShift, getPumps, getDailyReconciliation, getShiftsInRange, getAvgFuelCostPerLiter } from '../lib/api';
+import NeedsAttentionPanel from '../components/NeedsAttentionPanel';
+import {
+  getTanks,
+  getPrices,
+  getRecentShifts,
+  getTodayTotals,
+  getWeeklyThroughput,
+  deleteShift,
+  getPumps,
+  getDailyReconciliation,
+  getShiftsInRange,
+  getAvgFuelCostPerLiter,
+  getAllSuppliers,
+  getAllDeliveriesForLedger,
+  getAllSupplierPayments,
+} from '../lib/api';
 import { daysAgoString } from '../lib/date';
 
 export default function Overview({ onNavigate, isOwner }) {
@@ -16,6 +30,7 @@ export default function Overview({ onNavigate, isOwner }) {
   const [totals, setTotals] = useState({ totalSales: 0, litersToday: 0, expenses: 0, byFuel: {} });
   const [avgFuelCost, setAvgFuelCost] = useState({});
   const [weekly, setWeekly] = useState([]);
+  const [supplierIssues, setSupplierIssues] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reconciliationReminder, setReconciliationReminder] = useState(false);
 
@@ -41,7 +56,7 @@ export default function Overview({ onNavigate, isOwner }) {
 
   async function load() {
     try {
-      const [t, p, s, tot, w, pmp, avgCost] = await Promise.all([
+      const [t, p, s, tot, w, pmp, avgCost, suppliers, deliveries, payments] = await Promise.all([
         getTanks(),
         getPrices(),
         getRecentShifts(),
@@ -49,6 +64,9 @@ export default function Overview({ onNavigate, isOwner }) {
         getWeeklyThroughput(),
         getPumps(),
         getAvgFuelCostPerLiter(),
+        getAllSuppliers(),
+        getAllDeliveriesForLedger(),
+        getAllSupplierPayments(),
       ]);
       setTanks(t);
       setPrices(p);
@@ -57,6 +75,26 @@ export default function Overview({ onNavigate, isOwner }) {
       setWeekly(w);
       setPumps(pmp);
       setAvgFuelCost(avgCost);
+
+      // Simple "any balance owed" flag — there's no due-date concept
+      // for supplier balances, so this isn't "overdue," just visible.
+      // Capped to the top 3 by amount so this doesn't get noisy for
+      // stations that routinely carry several small balances.
+      const balances = suppliers
+        .filter((sup) => sup.active)
+        .map((sup) => {
+          const owed = deliveries
+            .filter((d) => d.supplier_id === sup.id)
+            .reduce((sum, d) => sum + Number(d.liters) * Number(d.rate_per_liter) - Number(d.amount_paid || 0), 0);
+          const paid = payments
+            .filter((pm) => pm.supplier_id === sup.id)
+            .reduce((sum, pm) => sum + Number(pm.amount), 0);
+          return { name: sup.name, balance: owed - paid };
+        })
+        .filter((b) => b.balance > 0)
+        .sort((a, b) => b.balance - a.balance)
+        .slice(0, 3);
+      setSupplierIssues(balances);
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
     } finally {
@@ -106,20 +144,59 @@ export default function Overview({ onNavigate, isOwner }) {
   );
   const trueProfit = totals.totalSales - fuelCostToday - totals.expenses;
 
+  const needsAttentionItems = [];
+
+  tanks
+    .filter((t) => (t.current_liters / t.capacity_liters) * 100 < (t.low_stock_threshold_pct ?? 25))
+    .forEach((t) => {
+      needsAttentionItems.push({
+        id: `stock-${t.id}`,
+        text: `${t.name} at ${Math.round((t.current_liters / t.capacity_liters) * 100)}% — order fuel soon`,
+        actionLabel: 'Record Delivery',
+        onAction: () => onNavigate?.('inventory'),
+      });
+    });
+
+  if (reconciliationReminder) {
+    needsAttentionItems.push({
+      id: 'reconciliation',
+      text: "Yesterday's cash reconciliation hasn't been done yet",
+      actionLabel: 'Do it now',
+      onAction: () => onNavigate?.('reconciliation'),
+    });
+  }
+
+  shifts.forEach((s) => {
+    const liters = Number(s.closing_reading) - Number(s.opening_reading);
+    const amount = liters * Number(s.price_per_liter);
+    const paymentSplitTotal =
+      (Number(s.cash_amount) || 0) +
+      (Number(s.card_amount) || 0) +
+      (Number(s.easypaisa_amount) || 0) +
+      (Number(s.jazzcash_amount) || 0) +
+      (Number(s.credit_amount) || 0);
+    if (Math.abs(amount - paymentSplitTotal) > 1) {
+      needsAttentionItems.push({
+        id: `mismatch-${s.id}`,
+        text: `${s.pump}, ${s.shift_type} (${s.shift_date}) — payment split doesn't match the sale amount`,
+        actionLabel: 'View in Reports',
+        onAction: () => onNavigate?.('reports'),
+      });
+    }
+  });
+
+  supplierIssues.forEach((sup) => {
+    needsAttentionItems.push({
+      id: `supplier-${sup.name}`,
+      text: `${sup.name} is owed Rs ${Math.round(sup.balance).toLocaleString('en-IN')}`,
+      actionLabel: 'View Suppliers',
+      onAction: () => onNavigate?.('suppliers'),
+    });
+  });
+
   return (
     <div>
-      {reconciliationReminder && (
-        <div className="mb-4 px-4 py-3 rounded-lg border border-warnLight/30 bg-warnLight/10 font-sans text-[12.5px] text-warn flex items-center justify-between flex-wrap gap-2">
-          <span>Yesterday's cash reconciliation hasn't been done yet.</span>
-          <button
-            onClick={() => onNavigate?.('reconciliation')}
-            className="font-medium underline decoration-dotted underline-offset-4 hover:text-warnLight"
-          >
-            Do it now →
-          </button>
-        </div>
-      )}
-      <LowStockAlert tanks={tanks} onGoToInventory={() => onNavigate?.('inventory')} />
+      <NeedsAttentionPanel items={needsAttentionItems} />
       <PriceTicker prices={prices} tanks={tanks} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">

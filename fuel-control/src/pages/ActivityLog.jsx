@@ -53,6 +53,22 @@ function describe(entry, staffById) {
     }
     case 'archived_periods':
       return `archived period "${n.period_label}" (${n.period_start} to ${n.period_end})`;
+    case 'credit_customers': {
+      if (operation === 'INSERT') return `added Udhaar customer "${n.name}"`;
+      if (operation === 'DELETE') return `removed Udhaar customer "${o.name}"`;
+      if (o.active === true && n.active === false) return `marked Udhaar customer "${n.name}" inactive`;
+      if (o.active === false && n.active === true) return `reactivated Udhaar customer "${n.name}"`;
+      if (Number(o.credit_limit) !== Number(n.credit_limit)) {
+        return `changed "${n.name}"'s credit limit to Rs ${Number(n.credit_limit).toLocaleString('en-IN')}`;
+      }
+      return `updated Udhaar customer "${n.name}"`;
+    }
+    case 'tanks':
+      return operation === 'INSERT'
+        ? `added tank "${n.name}" (${Number(n.capacity_liters).toLocaleString()} L capacity)`
+        : `changed tank "${n.name}" settings (capacity ${Number(n.capacity_liters).toLocaleString()} L, low-stock alert at ${n.low_stock_threshold_pct}%)`;
+    case 'pumps':
+      return operation === 'INSERT' ? `added pump "${n.name}"` : `reassigned pump "${n.name}" to a different tank`;
     case 'salary_payments': {
       const label = n.type === 'deduction' ? 'a deduction' : n.type === 'advance' ? 'an advance' : 'a salary payment';
       const staffName = staffById?.[n.staff_id];

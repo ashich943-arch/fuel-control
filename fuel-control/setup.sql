@@ -360,6 +360,13 @@ create trigger trg_log_suppliers after insert or update or delete on suppliers f
 create trigger trg_log_supplier_payments after insert or delete on supplier_payments for each row execute function log_activity();
 create trigger trg_log_archived_periods after insert on archived_periods for each row execute function log_activity();
 create trigger trg_log_salary_payments after insert on salary_payments for each row execute function log_activity();
+create trigger trg_log_credit_customers after insert or update or delete on credit_customers for each row execute function log_activity();
+-- Only fires on new tanks and capacity/threshold changes, NOT on
+-- ordinary stock updates (current_liters changes on every shift/
+-- delivery via adjust_tank_level() — logging every one would flood
+-- the log).
+create trigger trg_log_tanks after insert or update of capacity_liters, low_stock_threshold_pct on tanks for each row execute function log_activity();
+create trigger trg_log_pumps after insert or update of tank_id on pumps for each row execute function log_activity();
 
 -- ============================================================
 -- Row Level Security — single-admin setup
